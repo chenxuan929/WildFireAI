@@ -1,0 +1,100 @@
+import numpy as np
+import matplotlib.pyplot as plt
+from IPython.display import display, clear_output
+from scipy.ndimage import gaussian_filter
+
+# Simulation parameters
+GRID_SIZE = (30, 30)
+SIM_STEPS = 40
+
+# Fire states and fuel types
+UNBURNED, BURNING, BURNED, FIREBREAK = 0, 1, 2, 3
+FUEL_TYPES = {
+    0: {'name': 'Grass', 'base_spread': 0.3, 'moisture': 0.15, 'height': 0.5},
+    1: {'name': 'Shrubs', 'base_spread': 0.5, 'moisture': 0.25, 'height': 1.5},
+    2: {'name': 'Trees', 'base_spread': 0.7, 'moisture': 0.35, 'height': 10.0},
+    3: {'name': 'Urban', 'base_spread': 0.1, 'moisture': 0.05, 'height': 0.0}
+}
+
+# Initialize grid with realistic terrain and fuels
+elevation = np.zeros(GRID_SIZE)
+fuel_types = np.random.choice(list(FUEL_TYPES.keys()), size=GRID_SIZE, p=[0.4, 0.3, 0.2, 0.1])
+
+# Generate terrain features using Perlin noise
+def generate_terrain(size, scale=5.0):
+    x = np.linspace(0, scale, size[0])
+    y = np.linspace(0, scale, size[1])
+    X, Y = np.meshgrid(x, y)
+    noise = np.sin(2*X) * np.cos(3*Y) + 0.5*np.sin(5*X + Y)
+    return gaussian_filter(noise, sigma=1.5)
+
+elevation = generate_terrain(GRID_SIZE)
+slope = np.gradient(elevation)
+
+# Initialize fire state and weather
+fire_state = np.zeros(GRID_SIZE, dtype=int)
+wind = {'speed': 15, 'dir': np.deg2rad(45)}  # Wind from NW in km/h
+
+# Dynamic weather parameters
+def update_weather(wind):
+    wind['dir'] += np.random.normal(0, 0.1)  # Random direction variation
+    wind['speed'] *= np.random.uniform(0.9, 1.1)  # Speed fluctuation
+    return wind
+
+# Fire spread probability calculation
+def spread_probability(source, target, wind, slope):
+    base = FUEL_TYPES[fuel_types[target]]['base_spread']
+    moisture_effect = 1 - FUEL_TYPES[fuel_types[target]]['moisture']
+    
+    # Wind effect using vector projection
+    dx = target[0] - source[0]
+    dy = target[1] - source[1]
+    cell_dir = np.arctan2(dy, dx)
+    wind_effect = 1 + wind['speed']/20 * np.cos(wind['dir'] - cell_dir)
+    
+    # Slope effect (fire spreads faster uphill)
+    slope_effect = 1 + 2 * slope[0][target] + 1.5 * slope[1][target]
+    
+    return min(0.95, base * moisture_effect * wind_effect * slope_effect)
+
+# Simulation loop
+fire_state_history = []
+for step in range(SIM_STEPS):
+    wind = update_weather(wind)
+    new_state = fire_state.copy()
+    
+    for x in range(GRID_SIZE[0]):
+        for y in range(GRID_SIZE[1]):
+            if fire_state[x,y] == BURNING:
+                # Spread to neighbors
+                for dx in [-1, 0, 1]:
+                    for dy in [-1, 0, 1]:
+                        if 0 <= x+dx < GRID_SIZE[0] and 0 <= y+dy < GRID_SIZE[1]:
+                            if fire_state[x+dx,y+dy] == UNBURNED:
+                                prob = spread_probability((x,y), (x+dx,y+dy), wind, slope)
+                                if np.random.rand() < prob:
+                                    new_state[x+dx,y+dy] = BURNING
+                                    
+                # Transition to burned state
+                if np.random.rand() < 0.25:
+                    new_state[x,y] = BURNED
+                    
+    fire_state = new_state.copy()
+    fire_state_history.append(fire_state.copy())
+
+# Visualization code remains similar but with 3D terrain
+# 3D Visualization using matplotlib
+fig = plt.figure(figsize=(12, 8))
+ax = fig.add_subplot(111, projection='3d')
+
+X, Y = np.meshgrid(range(GRID_SIZE[0]), range(GRID_SIZE[1]))
+ax.plot_surface(X, Y, elevation, cmap='terrain', alpha=0.5)
+
+# Add fire layer
+fire_mask = fire_state == BURNING
+ax.scatter(X[fire_mask], Y[fire_mask], elevation[fire_mask]+1, 
+           c='orange', s=50, marker='o')
+
+plt.title("3D Wildfire Simulation with Terrain")
+plt.show()
+
