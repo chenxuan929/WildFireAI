@@ -58,7 +58,3 @@ Using wildfire simulation runs (or multiple runs from different starting cells) 
 - **Team Responsibilities & Timeline**  
   - **Tentative division of work**  
   - **Soft deliverables and milestones**  
-
----
-
-This document serves as a foundation for developing an effective wildfire prediction and mitigation model. 🚀🔥  
