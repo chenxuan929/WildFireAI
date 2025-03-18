@@ -27,13 +27,13 @@ def get_attributes_by_location(location):
     responses = openmeteo.weather_api(url, params=params)
     response = responses[0]
     elevation = response.Elevation()
-    print(f"Debug API Response: {response}")
+    #print(f"Debug API Response: {response}")
 
-    print(f"Coordinates: {response.Latitude()}°N, {response.Longitude()}°E, Elevation: {elevation}m")
+    #print(f"Coordinates: {response.Latitude()}°N, {response.Longitude()}°E, Elevation: {elevation}m")
 
     hourly = response.Hourly()
     num_vars = hourly.VariablesLength()
-    print(f"Number of available variables: {num_vars}")
+    #print(f"Number of available variables: {num_vars}")
 
     feature_names = {
         "temperature_2m": "Temperature (2 m)",
