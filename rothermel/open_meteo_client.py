@@ -26,8 +26,10 @@ def get_attributes_by_location(location):
     
     responses = openmeteo.weather_api(url, params=params)
     response = responses[0]
+    elevation = response.Elevation()
+    print(f"Debug API Response: {response}")
 
-    print(f"Coordinates: {response.Latitude()}°N, {response.Longitude()}°E")
+    print(f"Coordinates: {response.Latitude()}°N, {response.Longitude()}°E, Elevation: {elevation}m")
 
     hourly = response.Hourly()
     num_vars = hourly.VariablesLength()
@@ -71,12 +73,12 @@ def get_attributes_by_location(location):
             values = hourly.Variables(i).ValuesAsNumpy()
             hourly_data[feature_names[feature]] = values[closest_idx]  # Pick closest time value.
         else:
-            print(f"⚠️ Warning: {feature} is missing in the response!")
+            print(f"Warning: {feature} is missing in the response!")
             hourly_data[feature_names[feature]] = None  # Assign None if missing.
 
     # Convert to a one-row DataFrame
     # hourly_dataframe = pd.DataFrame([hourly_data])
-    
+    hourly_data["elevation"] = elevation
     # print(hourly_data)
     return hourly_data
 
