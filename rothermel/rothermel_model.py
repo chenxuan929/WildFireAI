@@ -22,9 +22,7 @@ def get_environmental_data(location):
 
 # Calculates slope using elevation difference over a set horizontal distance (default 500m)
 def calculate_slope(elevation, elevation2, distance=500):
-    # print(f"Debug: Elevation 1 = {elevation}m, Elevation 2 = {elevation2}m, Distance = {distance}m")
     slope = ((elevation2 - elevation) / distance) * 100
-    # print(f"Debug: Computed Slope (Raw) = {slope}%")
     return slope  # Return percentage
 
 # Pops a nearby latitude point at a given distance (default 500m)
@@ -43,8 +41,6 @@ def calculate_ros(fuel_type, wind_speed, slope, moisture):
     h = fuel['Heat Content'].values[0] if 'Heat Content' in fuel.columns else 18000 # Heat content (J/kg)
     m_f = moisture
     fuel_bed_depth = fuel["Fuel Bed Depth"].values[0]
-    print(f"Debug: Fuel Bed Depth = {fuel_bed_depth}")
-    print(f"Debug: Fuel Load (1-hr) = {w_0}")
 
     # Reaction intensity calculation
     I_R = h * w_0 * (1 - m_f)
@@ -63,15 +59,9 @@ def calculate_ros(fuel_type, wind_speed, slope, moisture):
     rho_p = fuel_type_to_rho_p.get(fuel_prefix, 550)
     rho_b = w_0 / fuel_bed_depth
     calculated_beta = rho_b / rho_p
-    print(f"Debug: Calculated β before cap = {calculated_beta}")
-    if fuel_type.startswith("SB"):
-        beta = max(rho_b / rho_p, 0.06)
-        sigma *= 0.9
-        I_R *= 0.08
-    else:
-        beta = max(rho_b / rho_p, 0.02)
-    print(f"Debug: Fuel Type = {fuel_type}, ρ_p = {rho_p} kg/m³, β = {beta}, Wind Speed = {wind_speed} m/s, SAV Ratio = {sigma}")
     
+    beta = max(calculated_beta, 0.02) # The output based on this beta is too big for now, need further adjustment
+
     # Wind and slope factor
     phi_wind = np.log1p(wind_speed * sigma * 0.01)  # Log-based scaling
     phi_slope = slope * 0.02
@@ -85,11 +75,11 @@ def calculate_ros(fuel_type, wind_speed, slope, moisture):
 location = (40.0, -105.0)  # coordinates input
 elevation, elevation2, moisture, temperature, wind_speed = get_environmental_data(location)
 slope = calculate_slope(elevation, elevation2)
-print(f"Slope: {slope:.8f}% (computed from real elevation data)")
-fuel_type = "SB1"
-ros = calculate_ros(fuel_type, wind_speed, slope, moisture)
-
-print(f"Calculated the Rate of Spread: {ros:.3f} m/min")
+#fuel_type = "SB1"
+fuel_types = ["GR1", "GR2", "GR3", "GR4", "GR5", "GR6", "GR7", "GR8", "GR9", "GS1", "GS2", "GS3", "GS4", "SH1", "SH2", "SH3", "SH4", "SH5", "TU1", "TL1", "TL2", "SB1", "SB2", "SB3", "SB4"]
+for fuel_type in fuel_types:
+    ros = calculate_ros(fuel_type, wind_speed, slope, moisture)
+    print(f"Calculated the Rate of Spread for {fuel_type}: {ros:.3f} m/min")
 
 
 
