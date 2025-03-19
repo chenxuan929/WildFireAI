@@ -19,7 +19,8 @@ fuel_type_adjustments = {
 def get_live_fuel_moisture(location):
     # Get real-time live fuel moisture from a weather API
     data = get_attributes_by_location(location)
-    return data.get("live_fuel_moisture", 75)  # Default to 75%
+    return data.get("live_fuel_moisture", 75)  # Default to 75% 
+    # I dont think we have that in our API, we could use default value for now?
 
 
 def get_environmental_data(location):
@@ -31,11 +32,14 @@ def get_environmental_data(location):
     elevation2 = data2["elevation"] if "elevation" in data2 else 0 
 
     moisture = data.get("Soil Moisture (0-10 cm)")
+    
     if moisture is None:
         moisture = 0.1
     
-    temperature = data.get("temperature_2m", 25)  # Air temperature at 2m height
-    wind_speed = data.get("wind_speed_80m", 5)
+    temperature = data.get("Temperature (2 m)", 25)  # Air temperature at 2m height
+    
+    wind_speed = data.get("Wind Speed (80 m)", 5)
+    
 
     return elevation, elevation2, moisture, temperature, wind_speed
 
@@ -88,7 +92,7 @@ def calculate_ros(fuel_type, wind_speed, slope, moisture, live_herb_moisture, fu
         return {
         "fuel_type": fuel_type,
         "ros": 0.0,
-        "status_code": 0 #Fire won't spread: Moisture too high
+        "status_code": 0 # Fire won't spread: Moisture too high
     }
     
     # Wind and slope factor
@@ -108,13 +112,15 @@ def calculate_ros(fuel_type, wind_speed, slope, moisture, live_herb_moisture, fu
     return {
         "fuel_type": fuel_type,
         "ros": ROS,
-        "status_code": 1 #Fire will spread
+        "status_code": 1 # Fire will spread
     }
 
 
 # Test it
+# location = (40.0, -105.0)
 location = (34.0549, -118.2426)  # coordinates input
 elevation, elevation2, moisture, temperature, wind_speed = get_environmental_data(location)
+
 slope = calculate_slope(elevation, elevation2)
 live_herb_moisture = get_live_fuel_moisture(location)
 fuel_types = ["GR1", "GR2", "GR3", "GR4", "GR5", "GR6", "GR7", "GR8", "GR9", "GS1", "GS2", "GS3", "GS4", "SH1", "SH2", "SH3", "SH4", "SH5", "TU1", "TL1", "TL2", "SB1", "SB2", "SB3", "SB4"]
