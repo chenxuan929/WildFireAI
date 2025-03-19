@@ -6,6 +6,22 @@ from open_meteo_client import get_attributes_by_location
 # Reads fuel model parameters from csv
 fuel_model_params = pd.read_csv("fuel_model_params.csv", skiprows=1).rename(columns=lambda x: x.strip())
 
+# Fire spread constants -> fire spread adjustments for different fuel types
+fuel_type_adjustments = {
+    "GR": 1.2,  # Grass fires spread faster
+    "GS": 1.1,  # Grass-Shrub mix is slightly faster
+    "SH": 0.9,  # Shrub fires are slightly slower
+    "TU": 0.8,  # Timber-Understory fires are slower
+    "TL": 0.7,  # Timber Litter fires are slowest
+    "SB": 1.0   # Slash-Blowdown as expected
+}
+
+def get_live_fuel_moisture(location):
+    # Get real-time live fuel moisture from a weather API
+    data = get_attributes_by_location(location)
+    return data.get("live_fuel_moisture", 75)  # Default to 75%
+
+
 def get_environmental_data(location):
     second_location = get_nearby_location(location)
     data = get_attributes_by_location(location)
@@ -31,57 +47,69 @@ def get_nearby_location(location, distance=500):
     return (location[0] + lat_shift, location[1])  # Move north
 
 # Calculates the rate of spread (ROS)
-def calculate_ros(fuel_type, wind_speed, slope, moisture):
+def calculate_ros(fuel_type, wind_speed, slope, moisture, live_herb_moisture, fuel_model_params):
     fuel = fuel_model_params[fuel_model_params['Fuel Model Code'] == fuel_type]
     if fuel.empty:
         raise ValueError("Fuel type not found in dataset.")
     
-    w_0 = fuel['Fuel Load (1-hr)'].values[0]  # Fuel load (kg/m^2)
+    w_0 = fuel['Fuel Load (1-hr)'].values[0]  # Dead fine fuel load (kg/m^2)
+    w_10 = fuel['Fuel Load (10-hr)'].values[0]  # Medium fuel load
+    w_100 = fuel['Fuel Load (100-hr)'].values[0]  # Heavy fuel load
+
+    w_live_herb = fuel['Fuel Load (Live herb)'].values[0]  # Live herbaceous fuel
+    w_live_woody = fuel['Fuel Load (Live woody)'].values[0]  # Live woody fuel
+    extinction_moisture = fuel['Dead Fuel Extincion Moisture Percent'].values[0]
     sigma = fuel['SAV Ratio (Dead 1-hr)'].values[0]  # SAV ratio (m^2/m^3)
-    h = fuel['Heat Content'].values[0] if 'Heat Content' in fuel.columns else 18000 # Heat content (J/kg)
-    m_f = moisture
     fuel_bed_depth = fuel["Fuel Bed Depth"].values[0]
 
-    # Reaction intensity calculation
-    I_R = h * w_0 * (1 - m_f)
+    h = fuel['Heat Content'].values[0] if 'Heat Content' in fuel.columns else 18000 # Heat content (J/kg)
 
-    # ρ_p Lookup Table to automatically select ρ_p based on the fuel model
-    fuel_type_to_rho_p = {
-    "GR": 400,
-    "GS": 450,
-    "SH": 500,
-    "TU": 550,
-    "TL": 600,
-    "SB": 625
-}
-
+    # dynamically calculate rho_p
     fuel_prefix = fuel_type[:2]
-    rho_p = fuel_type_to_rho_p.get(fuel_prefix, 550)
-    rho_b = w_0 / fuel_bed_depth
-    calculated_beta = rho_b / rho_p
-    
-    beta = max(calculated_beta, 0.02) # The output based on this beta is too big for now, need further adjustment
 
+    transfer_ratio = 1.0 # Default (Fully cured)
+    if fuel_prefix in ["GR", "GS", "SH"]:
+        if live_herb_moisture >= 120:
+            transfer_ratio = 0.0  # Fully green, no transfer
+        elif live_herb_moisture >= 90:
+            transfer_ratio = 0.33  # 33% cured
+        elif live_herb_moisture >= 75:
+            transfer_ratio = 0.50  # 50% cured
+        elif live_herb_moisture >= 60:
+            transfer_ratio = 0.67  # 67% cured
+
+    dead_fuel_converted = w_live_herb * transfer_ratio
+    w_0 += dead_fuel_converted
+
+    if moisture > extinction_moisture:
+        return 0.0, "Fire won't spread: Moisture too high"
+    
     # Wind and slope factor
-    #phi_wind = np.log1p(wind_speed * sigma * 0.01)  # Log-based scaling
     phi_wind = 0.4 * (wind_speed / sigma) ** 2
-    # phi_slope = slope * 0.02
     phi_slope = 5.275 * (np.tan(np.radians(slope))) ** 1.35
+
+    # Dynamically Calculate Bulk Density
+    I_R = h * (w_0 + 0.5 * w_10 + 0.2 * w_100) * (1 - moisture)
+    rho_b = (w_0 + w_10 + w_100)/ fuel_bed_depth
+    beta = max(rho_b / 550, 0.02)
 
     # Rate of spread
     ROS = (I_R * (1 + phi_wind + phi_slope)) / (beta * sigma)
+    ROS *= fuel_type_adjustments.get(fuel_prefix, 1.0)
+    ROS = max(ROS, 0.1)
 
-    return max(ROS, 0.1)  # Ensure non-negative rate
+    return ROS, "Fire will spread"  # Ensure non-negative rate
+
 
 # Test it
 location = (40.0, -105.0)  # coordinates input
 elevation, elevation2, moisture, temperature, wind_speed = get_environmental_data(location)
 slope = calculate_slope(elevation, elevation2)
-#fuel_type = "SB1"
+live_herb_moisture = get_live_fuel_moisture(location)
 fuel_types = ["GR1", "GR2", "GR3", "GR4", "GR5", "GR6", "GR7", "GR8", "GR9", "GS1", "GS2", "GS3", "GS4", "SH1", "SH2", "SH3", "SH4", "SH5", "TU1", "TL1", "TL2", "SB1", "SB2", "SB3", "SB4"]
 for fuel_type in fuel_types:
-    ros = calculate_ros(fuel_type, wind_speed, slope, moisture)
-    print(f"Calculated the Rate of Spread for {fuel_type}: {ros:.3f} m/min")
+    ros = calculate_ros(fuel_type, wind_speed, slope, moisture, live_herb_moisture, fuel_model_params)
+    print(f"Calculated the Rate of Spread for {fuel_type}: {ros} m/min")
 
 
 
