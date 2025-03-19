@@ -30,7 +30,10 @@ def get_environmental_data(location):
     elevation = data["elevation"] if "elevation" in data else 0
     elevation2 = data2["elevation"] if "elevation" in data2 else 0 
 
-    moisture = data.get("soil_moisture_0_to_10cm", 0.1)  # Using top 10cm layer
+    moisture = data.get("Soil Moisture (0-10 cm)")
+    if moisture is None:
+        moisture = 0.1
+    
     temperature = data.get("temperature_2m", 25)  # Air temperature at 2m height
     wind_speed = data.get("wind_speed_80m", 5)
 
@@ -80,9 +83,13 @@ def calculate_ros(fuel_type, wind_speed, slope, moisture, live_herb_moisture, fu
 
     dead_fuel_converted = w_live_herb * transfer_ratio
     w_0 += dead_fuel_converted
-
+    
     if moisture > extinction_moisture:
-        return 0.0, "Fire won't spread: Moisture too high"
+        return {
+        "fuel_type": fuel_type,
+        "ros": 0.0,
+        "status_code": 0 #Fire won't spread: Moisture too high
+    }
     
     # Wind and slope factor
     phi_wind = 0.4 * (wind_speed / sigma) ** 2
@@ -98,18 +105,22 @@ def calculate_ros(fuel_type, wind_speed, slope, moisture, live_herb_moisture, fu
     ROS *= fuel_type_adjustments.get(fuel_prefix, 1.0)
     ROS = max(ROS, 0.1)
 
-    return ROS, "Fire will spread"  # Ensure non-negative rate
+    return {
+        "fuel_type": fuel_type,
+        "ros": ROS,
+        "status_code": 1 #Fire will spread
+    }
 
 
 # Test it
-location = (40.0, -105.0)  # coordinates input
+location = (34.0549, -118.2426)  # coordinates input
 elevation, elevation2, moisture, temperature, wind_speed = get_environmental_data(location)
 slope = calculate_slope(elevation, elevation2)
 live_herb_moisture = get_live_fuel_moisture(location)
 fuel_types = ["GR1", "GR2", "GR3", "GR4", "GR5", "GR6", "GR7", "GR8", "GR9", "GS1", "GS2", "GS3", "GS4", "SH1", "SH2", "SH3", "SH4", "SH5", "TU1", "TL1", "TL2", "SB1", "SB2", "SB3", "SB4"]
 for fuel_type in fuel_types:
     ros = calculate_ros(fuel_type, wind_speed, slope, moisture, live_herb_moisture, fuel_model_params)
-    print(f"Calculated the Rate of Spread for {fuel_type}: {ros} m/min")
+    print(f"Calculated the Rate of Spread for {ros} m/min")
 
 
 
