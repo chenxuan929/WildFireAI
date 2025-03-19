@@ -47,12 +47,12 @@ def calculate_ros(fuel_type, wind_speed, slope, moisture):
 
     # ρ_p Lookup Table to automatically select ρ_p based on the fuel model
     fuel_type_to_rho_p = {
-    "GR": 425,
-    "GS": 475,
-    "SH": 525,
+    "GR": 400,
+    "GS": 450,
+    "SH": 500,
     "TU": 550,
-    "TL": 575,
-    "SB": 600
+    "TL": 600,
+    "SB": 625
 }
 
     fuel_prefix = fuel_type[:2]
@@ -63,13 +63,15 @@ def calculate_ros(fuel_type, wind_speed, slope, moisture):
     beta = max(calculated_beta, 0.02) # The output based on this beta is too big for now, need further adjustment
 
     # Wind and slope factor
-    phi_wind = np.log1p(wind_speed * sigma * 0.01)  # Log-based scaling
-    phi_slope = slope * 0.02
+    #phi_wind = np.log1p(wind_speed * sigma * 0.01)  # Log-based scaling
+    phi_wind = 0.4 * (wind_speed / sigma) ** 2
+    # phi_slope = slope * 0.02
+    phi_slope = 5.275 * (np.tan(np.radians(slope))) ** 1.35
 
     # Rate of spread
     ROS = (I_R * (1 + phi_wind + phi_slope)) / (beta * sigma)
 
-    return max(ROS, 100)  # Ensure non-negative rate
+    return max(ROS, 0.1)  # Ensure non-negative rate
 
 # Test it
 location = (40.0, -105.0)  # coordinates input
