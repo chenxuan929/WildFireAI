@@ -44,7 +44,7 @@ landcover_descriptions = {
 }
 
 # Function to get landcover value & color at a coordinate
-def get_landcover_info(lon, lat):
+def get_landcover_info(lat, lon):
     point = ee.Geometry.Point(lon, lat)
     landcover_value = landcover.sample(region=point, scale=30).first().get('landcover').getInfo()
     
@@ -54,23 +54,24 @@ def get_landcover_info(lon, lat):
     
     return landcover_value, landcover_color, landcover_desc
 
-# Example coordinate
- # This is in long, lat, vs. lat., long for some reason?
-longitude, latitude = 118.2426, 34.0549
+# # Example coordinate
+#  # This is in long, lat, vs. lat., long for some reason?
+# longitude, latitude = 118.2426, 34.0549
 
-value, color, desc = get_landcover_info(longitude, latitude)
+# value, color, desc = get_landcover_info(latitude, longitude)
 
-print(f"Landcover Value: {value}")
-print(f"Hex Color: {color}")
-print(f"Description: {desc}")
+# print(f"Landcover Value: {value}")
+# print(f"Hex Color: {color}")
+# print(f"Description: {desc}")
 
-# Create a map
-Map = geemap.Map()
-Map.setCenter(longitude, latitude, 3)  # Center the map
+# # Create a map
+# Map = geemap.Map()
+# Map.setCenter(longitude, latitude, 3)  # Center the map
 
-# Add the landcover layer
-Map.addLayer(landcover, {'palette': list(landcover_palette.values()), 'min': 11, 'max': 230}, 'Landcover')
+# # Add the landcover layer
+# Map.addLayer(landcover, {'palette': list(landcover_palette.values()), 'min': 11, 'max': 230}, 'Landcover')
 
-# # Save the map
-# Map.save("land_cover_map.html")
-# print("Map saved as land_cover_map.html. Open it in a browser to view.")
+# # # Save the map
+# # Map.save("land_cover_map.html")
+# # print("Map saved as land_cover_map.html. Open it in a browser to view.")
+
