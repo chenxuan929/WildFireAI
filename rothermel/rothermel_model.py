@@ -3,6 +3,11 @@ import pandas as pd
 import numpy as np
 from open_meteo_client import get_attributes_by_location
 
+import csv
+import os
+
+CSV_LOG_FILE = "ros_results.csv"
+
 # Reads fuel model parameters from csv
 fuel_model_params = pd.read_csv("fuel_model_params.csv", skiprows=1).rename(columns=lambda x: x.strip())
 
@@ -53,8 +58,25 @@ def get_nearby_location(location, distance=500):
     lat_shift = distance / 111320  # Convert meters to degrees
     return (location[0] + lat_shift, location[1])  # Move north
 
+def get_fuel_group(fuel_type):
+    for group in ["GR", "GS", "SH", "TU", "TL", "SB"]:
+        if fuel_type.startswith(group):
+            return group
+    return "UNKNOWN"
+
+
 # Calculates the rate of spread (ROS)
 def calculate_ros(fuel_type, wind_speed, slope, moisture, live_herb_moisture, fuel_model_params):
+    """
+    Calculate the Rate of Spread (ROS) using Rothermel model.
+
+    Returns:
+        dict: {
+            "fuel_type": str,
+            "ros": float (m/min),
+            "status_code": int (1=spread, 0=won't spread)
+        }
+    """
     fuel = fuel_model_params[fuel_model_params['Fuel Model Code'] == fuel_type]
     if fuel.empty:
         raise ValueError("Fuel type not found in dataset.")
@@ -72,7 +94,8 @@ def calculate_ros(fuel_type, wind_speed, slope, moisture, live_herb_moisture, fu
     h = fuel['Heat Content'].values[0] if 'Heat Content' in fuel.columns else 18000 # Heat content (J/kg)
 
     # dynamically calculate rho_p
-    fuel_prefix = fuel_type[:2]
+    fuel_prefix = get_fuel_group(fuel_type)
+
 
     transfer_ratio = 1.0 # Default (Fully cured)
     if fuel_prefix in ["GR", "GS", "SH"]:
@@ -102,18 +125,23 @@ def calculate_ros(fuel_type, wind_speed, slope, moisture, live_herb_moisture, fu
     # Dynamically Calculate Bulk Density
     I_R = h * (w_0 + 0.5 * w_10 + 0.2 * w_100) * (1 - moisture)
     rho_b = (w_0 + w_10 + w_100)/ fuel_bed_depth
-    beta = max(rho_b / 550, 0.02)
+    PARTICLE_DENSITY = 512  # kg/m^3
+    beta = max(rho_b / PARTICLE_DENSITY, 0.02)
+
 
     # Rate of spread
     ROS = (I_R * (1 + phi_wind + phi_slope)) / (beta * sigma)
     ROS *= fuel_type_adjustments.get(fuel_prefix, 1.0)
-    ROS = max(ROS, 0.1)
+    MIN_ROS = 0.1  # m/min
+    ROS = max(ROS, MIN_ROS)
 
     return {
         "fuel_type": fuel_type,
         "ros": ROS,
         "status_code": 1 # Fire will spread
     }
+
+
 
 
 # Test it
@@ -125,9 +153,23 @@ slope = calculate_slope(elevation, elevation2)
 live_herb_moisture = get_live_fuel_moisture(location)
 fuel_types = ["GR1", "GR2", "GR3", "GR4", "GR5", "GR6", "GR7", "GR8", "GR9", "GS1", "GS2", "GS3", "GS4", "SH1", "SH2", "SH3", "SH4", "SH5", "TU1", "TL1", "TL2", "SB1", "SB2", "SB3", "SB4"]
 for fuel_type in fuel_types:
-    ros = calculate_ros(fuel_type, wind_speed, slope, moisture, live_herb_moisture, fuel_model_params)
-    print(f"Calculated the Rate of Spread for {ros} m/min")
+    result = calculate_ros(fuel_type, wind_speed, slope, moisture, live_herb_moisture, fuel_model_params)
+    print(f"{result['fuel_type']:>4} | ROS: {result['ros']:.1f} m/min | Status: {'Spread' if result['status_code'] else 'No Spread'}")
 
+
+
+
+
+
+
+'''
+API response record for further check
+API Response: {'Date': Timestamp('2025-03-19 18:00:00+0000', tz='UTC'), 'Temperature (2 m)': 5.4040003, 
+'Soil Moisture (0-10 cm)': 0.195, 'Soil Moisture (10-40 cm)': 0.25, 'Soil Moisture (40-100 cm)': 0.232, 
+'Soil Moisture (100-200 cm)': 0.251, 'Soil Temperature (0-10 cm)': 4.0115, 'Soil Temperature (10-40 cm)': 5.7115, 
+'Soil Temperature (40-100 cm)': 3.9615002, 'Soil Temperature (100-200 cm)': 2.9115, 'Surface Temperature': 9.154, 
+'Temperature (80 m)': 2.3245, 'Wind Speed (80 m)': 45.468437, 'Wind Direction (80 m)': 349.04596, 'elevation': 1592.0}
+'''
 
 
 
