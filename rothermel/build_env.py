@@ -1,6 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import open_meteo_client
+import google_earth_segmentation
 
 # Builds grid of specified grid_size (n x n), based on a fixed central coordinate
 # and radius. Each cell in the grid contains a dictionary of its properties, such as
@@ -26,6 +27,7 @@ def build_grid(central_coordinate, radius, grid_size):
             hourly_data = open_meteo_client.get_attributes_by_location((lat, lon))
             for feature in hourly_data:
                 grid[i][j][feature] = hourly_data[feature]
+            grid[i][j]["fuel_type"] = google_earth_segmentation.get_landcover_info(lat, lon)[2]
 
     return grid
 
@@ -88,4 +90,3 @@ grid_size = 20
 grid = build_grid(central_coordinate, radius, grid_size)
 # visualize_raw_grid(central_coordinate, radius, grid)
 print(grid[0][0])
-
