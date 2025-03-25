@@ -2,6 +2,7 @@
 import pandas as pd
 import numpy as np
 from open_meteo_client import get_attributes_by_location
+from google_earth_segmentation import get_landcover_info
 
 import csv
 import os
@@ -18,7 +19,9 @@ fuel_type_adjustments = {
     "SH": 0.9,  # Shrub fires are slightly slower
     "TU": 0.8,  # Timber-Understory fires are slower
     "TL": 0.7,  # Timber Litter fires are slowest
-    "SB": 1.0   # Slash-Blowdown as expected
+    "SB": 1.0,   # Slash-Blowdown as expected
+    "NB": 0.0,  # Non-burnable: urban, water, snow, etc.
+    "UNKNOWN": 0.0
 }
 
 def get_live_fuel_moisture(location):
@@ -32,21 +35,17 @@ def get_environmental_data(location):
     second_location = get_nearby_location(location)
     data = get_attributes_by_location(location)
     data2 = get_attributes_by_location(second_location)
-
     elevation = data["elevation"] if "elevation" in data else 0
     elevation2 = data2["elevation"] if "elevation" in data2 else 0 
-
-    moisture = data.get("Soil Moisture (0-10 cm)")
-    
+    slope = calculate_slope(elevation, elevation2)
+    moisture = data.get("Soil Moisture (0-10 cm)", 0.1)
+    live_herb_moisture = get_live_fuel_moisture(location)
     if moisture is None:
         moisture = 0.1
-    
     temperature = data.get("Temperature (2 m)", 25)  # Air temperature at 2m height
-    
     wind_speed = data.get("Wind Speed (80 m)", 5)
-    
 
-    return elevation, elevation2, moisture, temperature, wind_speed
+    return elevation, elevation2, moisture, temperature, wind_speed, slope, live_herb_moisture
 
 # Calculates slope using elevation difference over a set horizontal distance (default 500m)
 def calculate_slope(elevation, elevation2, distance=500):
@@ -59,9 +58,10 @@ def get_nearby_location(location, distance=500):
     return (location[0] + lat_shift, location[1])  # Move north
 
 def get_fuel_group(fuel_type):
-    for group in ["GR", "GS", "SH", "TU", "TL", "SB"]:
-        if fuel_type.startswith(group):
-            return group
+    prefix = fuel_type[:2].upper()
+    if prefix in fuel_type_adjustments:
+        return prefix
+    
     return "UNKNOWN"
 
 
@@ -77,9 +77,12 @@ def calculate_ros(fuel_type, wind_speed, slope, moisture, live_herb_moisture, fu
             "status_code": int (1=spread, 0=won't spread)
         }
     """
+    #print(fuel_type)
     fuel = fuel_model_params[fuel_model_params['Fuel Model Code'] == fuel_type]
+    
     if fuel.empty:
         raise ValueError("Fuel type not found in dataset.")
+    
     
     w_0 = fuel['Fuel Load (1-hr)'].values[0]  # Dead fine fuel load (kg/m^2)
     w_10 = fuel['Fuel Load (10-hr)'].values[0]  # Medium fuel load
@@ -145,16 +148,12 @@ def calculate_ros(fuel_type, wind_speed, slope, moisture, live_herb_moisture, fu
 
 
 # Test it
-# location = (40.0, -105.0)
+# location = (41.0, -106.0)
 location = (34.0549, -118.2426)  # coordinates input
-elevation, elevation2, moisture, temperature, wind_speed = get_environmental_data(location)
-
-slope = calculate_slope(elevation, elevation2)
-live_herb_moisture = get_live_fuel_moisture(location)
-fuel_types = ["GR1", "GR2", "GR3", "GR4", "GR5", "GR6", "GR7", "GR8", "GR9", "GS1", "GS2", "GS3", "GS4", "SH1", "SH2", "SH3", "SH4", "SH5", "TU1", "TL1", "TL2", "SB1", "SB2", "SB3", "SB4"]
-for fuel_type in fuel_types:
-    result = calculate_ros(fuel_type, wind_speed, slope, moisture, live_herb_moisture, fuel_model_params)
-    print(f"{result['fuel_type']:>4} | ROS: {result['ros']:.1f} m/min | Status: {'Spread' if result['status_code'] else 'No Spread'}")
+elevation, elevation2, moisture, temperature, wind_speed, slope, live_fuel_moisture = get_environmental_data(location)
+fuel_type = "GR2"
+result = calculate_ros(fuel_type, wind_speed, slope, moisture, live_fuel_moisture, fuel_model_params)
+print(f"{result['fuel_type']:>4} | ROS: {result['ros']:.1f} m/min | Status: {'Spread' if result['status_code'] else 'No Spread'}")
 
 
 
