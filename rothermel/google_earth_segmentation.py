@@ -43,6 +43,34 @@ landcover_descriptions = {
     230: "Unclassified"
 }
 
+# Mapping from GLOBCOVER land cover codes to fuel model codes
+globcover_to_fuel_type = {
+    11: "GR3",
+    14: "GR2",
+    20: "GR4",
+    30: "GR4",
+    40: "TU2",
+    50: "TU1",
+    60: "TU1",
+    70: "TU1",
+    90: "TU2",
+    100: "TU2",
+    110: "GS2",
+    120: "GR4",
+    130: "SH5",
+    140: "GR1",
+    150: "NB8",
+    160: "NB8",
+    170: "NB8",
+    180: "NB8",
+    190: "NB9",
+    200: "NB9",
+    210: "NB8",
+    220: "NB9",
+    230: "NB9"
+}
+
+
 # Function to get landcover value & color at a coordinate
 def get_landcover_info(lat, lon):
     point = ee.Geometry.Point(lon, lat)
@@ -51,8 +79,10 @@ def get_landcover_info(lat, lon):
     # Find corresponding color
     landcover_color = landcover_palette.get(landcover_value, 'Unknown')
     landcover_desc = landcover_descriptions.get(landcover_value, 'Unknown')
+    fuel_type = globcover_to_fuel_type.get(landcover_value, 'NB9')
     
-    return landcover_value, landcover_color, landcover_desc
+    
+    return landcover_value, landcover_color, fuel_type, landcover_desc
 
 # # Example coordinate
 #  # This is in long, lat, vs. lat., long for some reason?
