@@ -77,7 +77,13 @@ def calculate_ros(fuel_type, wind_speed, slope, moisture, live_herb_moisture, fu
             "status_code": int (1=spread, 0=won't spread)
         }
     """
-    #print(fuel_type)
+    
+    if fuel_type.startswith("NB"):
+        return {
+        "fuel_type": fuel_type,
+        "ros": 0.0,
+        "status_code": 0
+    }
     fuel = fuel_model_params[fuel_model_params['Fuel Model Code'] == fuel_type]
     
     if fuel.empty:
@@ -145,16 +151,17 @@ def calculate_ros(fuel_type, wind_speed, slope, moisture, live_herb_moisture, fu
 
 # Test it
 # location = (41.0, -106.0)
-location = (34.0549, -118.2426)  # coordinates input
-elevation, elevation2, moisture, temperature, wind_speed, slope, live_fuel_moisture = get_environmental_data(location)
-fuel_type = "GR2"
-result = calculate_ros(fuel_type, wind_speed, slope, moisture, live_fuel_moisture, fuel_model_params)
-print(f"{result['fuel_type']:>4} | ROS: {result['ros']:.1f} m/min | Status: {'Spread' if result['status_code'] else 'No Spread'}")
+# location = (34.0549, -118.2426)  # coordinates input
+# elevation, elevation2, moisture, temperature, wind_speed, slope, live_fuel_moisture = get_environmental_data(location)
+# fuel_type = "NB10"
+# result = calculate_ros(fuel_type, wind_speed, slope, moisture, live_fuel_moisture, fuel_model_params)
+# print(f"{result['fuel_type']:>4} | ROS: {result['ros']:.1f} m/min | Status: {'Spread' if result['status_code'] else 'No Spread'}")
 
 
 
 
-
+# run code : 
+# python3 -m fire_spread_prediction.rothermel_model
 
 
 '''
