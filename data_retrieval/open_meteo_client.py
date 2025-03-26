@@ -28,7 +28,7 @@ def get_attributes_by_location(location):
     response = responses[0]
     elevation = response.Elevation()
     #print(f"Debug API Response: {response}")
-
+    
     #print(f"Coordinates: {response.Latitude()}°N, {response.Longitude()}°E, Elevation: {elevation}m")
 
     hourly = response.Hourly()
