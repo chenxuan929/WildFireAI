@@ -50,7 +50,7 @@ def get_environmental_data(location):
 # Calculates slope using elevation difference over a set horizontal distance (default 500m)
 def calculate_slope(elevation, elevation2, distance=500):
     slope = ((elevation2 - elevation) / distance) * 100
-    return slope  # Return percentage
+    return abs(slope)  # Return percentage
 
 # Pops a nearby latitude point at a given distance (default 500m)
 def get_nearby_location(location, distance=500):

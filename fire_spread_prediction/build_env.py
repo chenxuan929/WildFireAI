@@ -89,10 +89,10 @@ def get_step_size(central_coordinate, grid_rad, grid_size):
 
     return lat_step, lon_step
 
-central_coordinate = (34.0549, 118.2426)  # (lat, lon)
-radius = 30 # km
-grid_size = 20
+# central_coordinate = (34.0549, 118.2426)  # (lat, lon)
+# radius = 30 # km
+# grid_size = 20
 
-grid = build_grid(central_coordinate, radius, grid_size)
+# grid = build_grid(central_coordinate, radius, grid_size)
 # visualize_raw_grid(central_coordinate, radius, grid)
-print(grid[0][0])
+# print(grid[0][0])

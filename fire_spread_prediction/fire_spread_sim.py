@@ -8,7 +8,7 @@ from fire_spread_prediction import rothermel_model
 fuel_model_params = pd.read_csv("./data_retrieval/fuel_model_params.csv", skiprows=1).rename(columns=lambda x: x.strip())
 
 # Define parameters
-central_coordinate = (34.0549, 118.2426)  # (lat, lon)
+central_coordinate = (30.0549, 100.2426)  # (lat, lon)
 radius = 30  # km
 grid_size = 20
 
@@ -68,6 +68,7 @@ def run_fire_simulation(iterations=20):
                     elevation, elevation2, moisture, temperature, wind_speed, slope, live_fuel_moisture = rothermel_model.get_environmental_data(grid[i][j]['central_coord'])
                     fuel_type = grid[i][j]['fuel_type']
                     print(fuel_type)
+                    print(elevation, elevation2, moisture, temperature, wind_speed, slope, live_fuel_moisture)
                     ros = rothermel_model.calculate_ros(fuel_type, wind_speed, slope, moisture, live_fuel_moisture, fuel_model_params)['ros']
                     prob = (ros * fire_intensity[i, j]) / max_ros  # Fire spread probability
 
@@ -88,4 +89,5 @@ def run_fire_simulation(iterations=20):
         plot_grid(fire_state)
 
 # Run simulation
+# python3 -m fire_spread_prediction.fire_spread_sim
 run_fire_simulation()
