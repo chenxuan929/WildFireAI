@@ -1,11 +1,7 @@
-# Based on a given cell, figure out what it's rothermel model value is.
 import pandas as pd
 import numpy as np
 from data_retrieval import open_meteo_client
 from data_retrieval import google_earth_segmentation
-
-import csv
-import os
 
 CSV_LOG_FILE = "ros_results.csv"
 
@@ -25,10 +21,19 @@ fuel_type_adjustments = {
 }
 
 def get_live_fuel_moisture(location):
-    # Get real-time live fuel moisture from a weather API
     data = open_meteo_client.get_attributes_by_location(location)
-    return data.get("live_fuel_moisture", 75)  # Default to 75% 
-    # I dont think we have that in our API, we could use default value for now?
+    # Use soil moisture in the top layer (0–10 cm)
+    sm_top = data.get("Soil Moisture (0-10 cm)", 0.25)
+    temp = data.get("Temperature (2 m)", 20.0)
+    lfmc = 30 + 100 * sm_top
+    if temp > 25:
+        adjustment = (temp - 25) * 1.5
+        lfmc -= adjustment
+        #print(f"[DEBUG] Temp exceeds 25°C, reducing LFMC by {adjustment:.2f}, new LFMC: {lfmc:.2f}")
+    lfmc = max(30, min(lfmc, 120))
+    #print(f"[DEBUG] Final LFMC after clamping: {lfmc:.2f}") 
+    return lfmc
+    
 
 
 def get_environmental_data(location):
@@ -39,13 +44,13 @@ def get_environmental_data(location):
     elevation2 = data2["elevation"] if "elevation" in data2 else 0 
     slope = calculate_slope(elevation, elevation2)
     moisture = data.get("Soil Moisture (0-10 cm)", 0.1)
-    live_herb_moisture = get_live_fuel_moisture(location)
+    live_fuel_moisture = get_live_fuel_moisture(location)
     if moisture is None:
         moisture = 0.1
     temperature = data.get("Temperature (2 m)", 25)  # Air temperature at 2m height
     wind_speed = data.get("Wind Speed (80 m)", 5)
 
-    return elevation, elevation2, moisture, temperature, wind_speed, slope, live_herb_moisture
+    return elevation, elevation2, moisture, temperature, wind_speed, slope, live_fuel_moisture
 
 # Calculates slope using elevation difference over a set horizontal distance (default 500m)
 def calculate_slope(elevation, elevation2, distance=500):
@@ -64,12 +69,10 @@ def get_fuel_group(fuel_type):
     
     return "UNKNOWN"
 
-
 # Calculates the rate of spread (ROS)
-def calculate_ros(fuel_type, wind_speed, slope, moisture, live_herb_moisture, fuel_model_params):
+def calculate_ros(fuel_type, wind_speed, slope, moisture, live_fuel_moisture, fuel_model_params):
     """
     Calculate the Rate of Spread (ROS) using Rothermel model.
-
     Returns:
         dict: {
             "fuel_type": str,
@@ -77,7 +80,6 @@ def calculate_ros(fuel_type, wind_speed, slope, moisture, live_herb_moisture, fu
             "status_code": int (1=spread, 0=won't spread)
         }
     """
-    
     if fuel_type.startswith("NB"):
         return {
         "fuel_type": fuel_type,
@@ -94,7 +96,6 @@ def calculate_ros(fuel_type, wind_speed, slope, moisture, live_herb_moisture, fu
     w_100 = fuel['Fuel Load (100-hr)'].values[0]  # Heavy fuel load
 
     w_live_herb = fuel['Fuel Load (Live herb)'].values[0]  # Live herbaceous fuel
-    w_live_woody = fuel['Fuel Load (Live woody)'].values[0]  # Live woody fuel
     extinction_moisture = fuel['Dead Fuel Extincion Moisture Percent'].values[0]
     sigma = fuel['SAV Ratio (Dead 1-hr)'].values[0]  # SAV ratio (m^2/m^3)
     fuel_bed_depth = fuel["Fuel Bed Depth"].values[0]
@@ -104,16 +105,15 @@ def calculate_ros(fuel_type, wind_speed, slope, moisture, live_herb_moisture, fu
     # dynamically calculate rho_p
     fuel_prefix = get_fuel_group(fuel_type)
 
-
     transfer_ratio = 1.0 # Default (Fully cured)
     if fuel_prefix in ["GR", "GS", "SH"]:
-        if live_herb_moisture >= 120:
+        if live_fuel_moisture >= 120:
             transfer_ratio = 0.0  # Fully green, no transfer
-        elif live_herb_moisture >= 90:
+        elif live_fuel_moisture >= 90:
             transfer_ratio = 0.33  # 33% cured
-        elif live_herb_moisture >= 75:
+        elif live_fuel_moisture >= 75:
             transfer_ratio = 0.50  # 50% cured
-        elif live_herb_moisture >= 60:
+        elif live_fuel_moisture >= 60:
             transfer_ratio = 0.67  # 67% cured
 
     dead_fuel_converted = w_live_herb * transfer_ratio
@@ -131,17 +131,21 @@ def calculate_ros(fuel_type, wind_speed, slope, moisture, live_herb_moisture, fu
     phi_slope = 5.275 * (np.tan(np.radians(slope))) ** 1.35
 
     # Dynamically Calculate Bulk Density
-    I_R = h * (w_0 + 0.5 * w_10 + 0.2 * w_100) * (1 - moisture)
+    reaction_intensity = h * (w_0 + 0.5 * w_10 + 0.2 * w_100) * (1 - moisture)
     rho_b = (w_0 + w_10 + w_100)/ fuel_bed_depth
     PARTICLE_DENSITY = 512  # kg/m^3
-    beta = max(rho_b / PARTICLE_DENSITY, 0.02)
+    beta = max(rho_b / PARTICLE_DENSITY, 1e-4)
 
 
     # Rate of spread
-    ROS = (I_R * (1 + phi_wind + phi_slope)) / (beta * sigma)
+    ROS = (reaction_intensity * (1 + phi_wind + phi_slope)) / (beta * sigma)
+    
+    damping_effect = np.exp(-0.1 * (live_fuel_moisture - 30)) 
+    ROS *= damping_effect
+
     ROS *= fuel_type_adjustments.get(fuel_prefix, 1.0)
-    MIN_ROS = 0.1  # m/min
-    ROS = max(ROS, MIN_ROS)
+    if ROS < 0.1:
+        return { "fuel_type": fuel_type, "ros": 0.0, "status_code": 0 }
 
     return {
         "fuel_type": fuel_type,
@@ -153,7 +157,7 @@ def calculate_ros(fuel_type, wind_speed, slope, moisture, live_herb_moisture, fu
 # location = (41.0, -106.0)
 # location = (34.0549, -118.2426)  # coordinates input
 # elevation, elevation2, moisture, temperature, wind_speed, slope, live_fuel_moisture = get_environmental_data(location)
-# fuel_type = "NB10"
+# fuel_type = "GS2"
 # result = calculate_ros(fuel_type, wind_speed, slope, moisture, live_fuel_moisture, fuel_model_params)
 # print(f"{result['fuel_type']:>4} | ROS: {result['ros']:.1f} m/min | Status: {'Spread' if result['status_code'] else 'No Spread'}")
 

@@ -38,6 +38,10 @@ def plot_grid(fire_state):
         for j in range(grid_size):
             if fire_state[i, j] == 1:
                 color_matrix[i, j] = "red"  # Burning cells
+            elif fire_state[i,j] == 2:
+                color_matrix[i,j] = "black"
+                fire_intensity[fire_state == 2] = 0.0 # reset the fire intensity of cells that are already BURNED
+
             else:
                 color_matrix[i, j] = grid[i][j]["fuel_type_color"]  # Default fuel type color  
 
@@ -65,12 +69,14 @@ def run_fire_simulation(iterations=20):
             for j in range(grid_size):
                 if fire_state[i, j] == 1:  # Burning cell
                     # Retrieve environmental conditions
+                    new_fire_state[i,j] = 2
                     elevation, elevation2, moisture, temperature, wind_speed, slope, live_fuel_moisture = rothermel_model.get_environmental_data(grid[i][j]['central_coord'])
                     fuel_type = grid[i][j]['fuel_type']
                     print(fuel_type)
                     print(elevation, elevation2, moisture, temperature, wind_speed, slope, live_fuel_moisture)
                     ros = rothermel_model.calculate_ros(fuel_type, wind_speed, slope, moisture, live_fuel_moisture, fuel_model_params)['ros']
-                    prob = (ros * fire_intensity[i, j]) / max_ros  # Fire spread probability
+                    #prob = (ros * fire_intensity[i, j]) / max_ros  # Fire spread probability
+                    prob = min((ros * fire_intensity[i, j]) / max_ros, 1.0)
 
                     print(f"Cell ({i},{j}) | ROS: {ros} | Spread Probability: {prob:.4f}")
 
