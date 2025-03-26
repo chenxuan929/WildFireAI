@@ -83,7 +83,6 @@ def calculate_ros(fuel_type, wind_speed, slope, moisture, live_herb_moisture, fu
     if fuel.empty:
         raise ValueError("Fuel type not found in dataset.")
     
-    
     w_0 = fuel['Fuel Load (1-hr)'].values[0]  # Dead fine fuel load (kg/m^2)
     w_10 = fuel['Fuel Load (10-hr)'].values[0]  # Medium fuel load
     w_100 = fuel['Fuel Load (100-hr)'].values[0]  # Heavy fuel load

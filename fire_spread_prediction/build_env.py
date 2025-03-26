@@ -21,15 +21,16 @@ def build_grid(central_coordinate, radius, grid_size):
             lat = lat_origin + (i + 0.5) * lat_step
             lon = lon_origin + (j + 0.5) * lon_step
 
-            #print(f"Getting attributes for cell ({i}, {j}): ({lat}, {lon})")
+            print(f"Getting attributes for cell ({i}, {j}): ({lat}, {lon})")
 
             grid[i][j]['central_coord'] = (lat, lon)
             hourly_data = open_meteo_client.get_attributes_by_location((lat, lon))
             for feature in hourly_data:
                 grid[i][j][feature] = hourly_data[feature]
             grid[i][j]["fuel_type"] = google_earth_segmentation.get_landcover_info(lat, lon)[2]
+            grid[i][j]["fuel_type_color"] = google_earth_segmentation.get_landcover_info(lat, lon)[1]
             
-            print(grid[i][j]["fuel_type"])
+            # print(grid[i][j]["fuel_type"])
 
     return grid
 
