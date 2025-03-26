@@ -144,7 +144,7 @@ def calculate_ros(fuel_type, wind_speed, slope, moisture, live_fuel_moisture, fu
     ROS *= damping_effect
 
     ROS *= fuel_type_adjustments.get(fuel_prefix, 1.0)
-    if ROS < 0.1:
+    if ROS < 25:
         return { "fuel_type": fuel_type, "ros": 0.0, "status_code": 0 }
 
     return {
