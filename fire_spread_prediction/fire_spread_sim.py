@@ -2,8 +2,8 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import time
-from fire_spread_prediction import build_env
-from fire_spread_prediction import rothermel_model
+import build_env
+import rothermel_model
 
 fuel_model_params = pd.read_csv("./data_retrieval/fuel_model_params.csv", skiprows=1).rename(columns=lambda x: x.strip())
 
