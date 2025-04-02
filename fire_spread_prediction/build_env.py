@@ -1,7 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
-from data_retrieval import open_meteo_client
-from data_retrieval import google_earth_segmentation
+import open_meteo_client
+import google_earth_segmentation
 
 # Builds grid of specified grid_size (n x n), based on a fixed central coordinate
 # and radius. Each cell in the grid contains a dictionary of its properties, such as
