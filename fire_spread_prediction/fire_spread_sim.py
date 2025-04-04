@@ -57,41 +57,41 @@ def plot_grid(fire_state):
     plt.pause(0.5)  # Pause to show updates
     plt.clf()  # Clear the figure to prepare for the next iteration
 
-# Fire spread simulation
-def run_fire_simulation(iterations=20):
+def run_fire_simulation(iterations=20, timeout_seconds=10):
     global fire_state, fire_intensity
 
+    start_time = time.time()  # Start the timer
+
     for t in range(iterations):
+        elapsed_time = time.time() - start_time
+        if elapsed_time > timeout_seconds:
+            print(f"Simulation stopped after {elapsed_time:.2f} seconds (timeout reached).")
+            break
+
         print(f"Iteration {t + 1}/{iterations}")
         new_fire_state = fire_state.copy()
 
         for i in range(grid_size):
             for j in range(grid_size):
                 if fire_state[i, j] == 1:  # Burning cell
-                    # Retrieve environmental conditions
                     new_fire_state[i,j] = 2
                     elevation, elevation2, moisture, temperature, wind_speed, slope, live_fuel_moisture = rothermel_model.get_environmental_data(grid[i][j]['central_coord'])
                     fuel_type = grid[i][j]['fuel_type']
                     print(fuel_type)
                     print(elevation, elevation2, moisture, temperature, wind_speed, slope, live_fuel_moisture)
                     ros = rothermel_model.calculate_ros(fuel_type, wind_speed, slope, moisture, live_fuel_moisture, fuel_model_params)['ros']
-                    #prob = (ros * fire_intensity[i, j]) / max_ros  # Fire spread probability
                     prob = min((ros * fire_intensity[i, j]) / max_ros, 1.0)
-
                     print(f"Cell ({i},{j}) | ROS: {ros} | Spread Probability: {prob:.4f}")
 
-                    # Spread fire to neighbors
-                    for di, dj in [(-1,0), (1,0), (0,-1), (0,1)]:  # 4-way spreading
+                    for di, dj in [(-1,0), (1,0), (0,-1), (0,1)]:
                         ni, nj = i + di, j + dj
                         if 0 <= ni < grid_size and 0 <= nj < grid_size:
-                            if fire_state[ni, nj] == 0 and np.random.rand() < prob:  # Only spread to UNBURNED
-                                new_fire_state[ni, nj] = 1  # Fire spreads
+                            if fire_state[ni, nj] == 0 and np.random.rand() < prob:
+                                new_fire_state[ni, nj] = 1
                                 print(f"Fire spreads to cell ({ni},{nj})")
 
         fire_state = new_fire_state
-        fire_intensity = np.maximum(0, fire_intensity - decay_rate)  # Apply linear decay
-        
-        # Visualize the grid state after each iteration
+        fire_intensity = np.maximum(0, fire_intensity - decay_rate)
         plot_grid(fire_state)
 
 # Run simulation
