@@ -4,6 +4,19 @@ import matplotlib.pyplot as plt
 import time
 import build_env
 import rothermel_model
+from firebreak_utils import Firebreak
+
+
+# Adjust Rate of Spread when fire enters firebreak
+def adjust_ros_with_firebreak(i, j, ros, firebreak_mask, p_block=0.8):
+    if firebreak_mask[i][j]:
+        # Fire might be blocked
+        if np.random.rand() < p_block:
+            return 0.0  # Completely blocked
+        else:
+            return ros * 0.2  # Fire slows down but continues
+    return ros
+
 
 fuel_model_params = pd.read_csv("./data_retrieval/fuel_model_params.csv", skiprows=1).rename(columns=lambda x: x.strip())
 
@@ -15,6 +28,9 @@ grid_size = 20
 # Build the grid (done once before simulation)
 print("Building grid...")
 grid = build_env.build_grid(central_coordinate, radius, grid_size)
+#Place a random firebreak in the real grid
+firebreak = Firebreak(grid)  # uses your real terrain/moisture/wind grid
+firebreak_mask = firebreak.firebreak_mask 
 
 # Fire spread parameters
 initial_intensity = 1.0
@@ -23,6 +39,7 @@ max_ros = 5.0  # Max ROS for scaling probabilities
 
 # Initialize fire state and intensity
 fire_state = np.zeros((grid_size, grid_size))  # UNBURNED = 0
+firebreak_mask = np.zeros((grid_size, grid_size), dtype=bool) 
 fire_intensity = np.full((grid_size, grid_size), initial_intensity)
 
 # Choose a starting cell
@@ -36,14 +53,16 @@ def plot_grid(fire_state):
 
     for i in range(grid_size):
         for j in range(grid_size):
-            if fire_state[i, j] == 1:
-                color_matrix[i, j] = "red"  # Burning cells
-            elif fire_state[i,j] == 2:
-                color_matrix[i,j] = "black"
-                fire_intensity[fire_state == 2] = 0.0 # reset the fire intensity of cells that are already BURNED
-
+            if firebreak_mask[i][j]:
+                color_matrix[i, j] = "white"  # Always show firebreaks as white
+            elif fire_state[i, j] == 1:
+                color_matrix[i, j] = "red"
+            elif fire_state[i, j] == 2:
+                color_matrix[i, j] = "black"
+                fire_intensity[fire_state == 2] = 0.0
             else:
-                color_matrix[i, j] = grid[i][j]["fuel_type_color"]  # Default fuel type color  
+                color_matrix[i, j] = grid[i][j]["fuel_type_color"]
+ 
 
     ax.imshow([[0] * grid_size] * grid_size, cmap="gray", alpha=0)
 
@@ -75,8 +94,9 @@ def run_fire_simulation(iterations=20):
                     print(fuel_type)
                     print(elevation, elevation2, moisture, temperature, wind_speed, slope, live_fuel_moisture)
                     ros = rothermel_model.calculate_ros(fuel_type, wind_speed, slope, moisture, live_fuel_moisture, fuel_model_params)['ros']
-                    #prob = (ros * fire_intensity[i, j]) / max_ros  # Fire spread probability
+                    ros = adjust_ros_with_firebreak(i, j, ros, firebreak_mask)  #  NEW: Modify ROS if firebreak is present
                     prob = min((ros * fire_intensity[i, j]) / max_ros, 1.0)
+
 
                     print(f"Cell ({i},{j}) | ROS: {ros} | Spread Probability: {prob:.4f}")
 
