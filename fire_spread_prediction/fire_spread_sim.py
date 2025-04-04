@@ -2,9 +2,9 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import time
-import build_env
-import rothermel_model
-from firebreak_utils import Firebreak
+import os
+import pickle
+from fire_spread_prediction import build_env, rothermel_model, firebreak_utils
 
 
 # Adjust Rate of Spread when fire enters firebreak
@@ -25,11 +25,23 @@ central_coordinate = (30.0549, 100.2426)  # (lat, lon)
 radius = 30  # km
 grid_size = 20
 
+# === Load or build grid ===
+if os.path.exists("saved_grid.pkl"):
+    print("Loading saved grid...")
+    with open("saved_grid.pkl", "rb") as f:
+        grid = pickle.load(f)
+else:
+    print("Building grid...")
+    grid = build_env.build_grid(central_coordinate, radius, grid_size)
+    with open("saved_grid.pkl", "wb") as f:
+        pickle.dump(grid, f)
+
+
 # Build the grid (done once before simulation)
-print("Building grid...")
-grid = build_env.build_grid(central_coordinate, radius, grid_size)
+# print("Building grid...")
+# grid = build_env.build_grid(central_coordinate, radius, grid_size)
 #Place a random firebreak in the real grid
-firebreak = Firebreak(grid)  # uses your real terrain/moisture/wind grid
+firebreak = firebreak_utils.Firebreak(grid)  # uses your real terrain/moisture/wind grid
 firebreak_mask = firebreak.firebreak_mask 
 
 # Fire spread parameters
@@ -39,7 +51,7 @@ max_ros = 5.0  # Max ROS for scaling probabilities
 
 # Initialize fire state and intensity
 fire_state = np.zeros((grid_size, grid_size))  # UNBURNED = 0
-firebreak_mask = np.zeros((grid_size, grid_size), dtype=bool) 
+#firebreak_mask = np.zeros((grid_size, grid_size), dtype=bool) 
 fire_intensity = np.full((grid_size, grid_size), initial_intensity)
 
 # Choose a starting cell
