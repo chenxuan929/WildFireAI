@@ -4,18 +4,51 @@ import matplotlib.pyplot as plt
 import time
 import os
 import pickle
-from fire_spread_prediction import build_env, rothermel_model, firebreak_utils
+import build_env, rothermel_model, firebreak_utils
 
 
 # Adjust Rate of Spread when fire enters firebreak
-def adjust_ros_with_firebreak(i, j, ros, firebreak_mask, p_block=0.8):
-    if firebreak_mask[i][j]:
-        # Fire might be blocked
-        if np.random.rand() < p_block:
-            return 0.0  # Completely blocked
-        else:
-            return ros * 0.2  # Fire slows down but continues
-    return ros
+
+def adjust_ros_with_firebreak(i, j, ros, firebreak_mask, fire_intensity, wind_speed, slope, min_width=2):
+    """
+    Reduce ROS at (i, j) if there's a firebreak, considering:
+    - Firebreak width (surrounding cells)
+    - Wind speed
+    - Slope
+    """
+    if not firebreak_mask[i][j]:
+        return ros
+
+    # Width of the firebreak in 4-neighbor directions
+    directions = [(-1,0), (1,0), (0,-1), (0,1)]
+    width_count = 1
+    for di, dj in directions:
+        ni, nj = i + di, j + dj
+        if 0 <= ni < firebreak_mask.shape[0] and 0 <= nj < firebreak_mask.shape[1]:
+            if firebreak_mask[ni][nj]:
+                width_count += 1
+
+    # === Slope impact ===
+    if slope >= 20:
+        slope_factor = 0.7  # Steep slope → firebreak less effective
+    elif slope >= 10:
+        slope_factor = 0.4
+    else:
+        slope_factor = 0.2  # Flatter = more effective
+
+    # === Wind impact ===
+    if wind_speed > 15:
+        wind_factor = 0.6
+    elif wind_speed > 8:
+        wind_factor = 0.3
+    else:
+        wind_factor = 0.1
+
+    # Total reduction factor combines slope, wind, and firebreak width
+    base_reduction = min(1.0, (width_count / (min_width + 1)))
+    total_reduction = 1.0 - (base_reduction * (1 - slope_factor) * (1 - wind_factor))
+
+    return ros * total_reduction
 
 
 fuel_model_params = pd.read_csv("./data_retrieval/fuel_model_params.csv", skiprows=1).rename(columns=lambda x: x.strip())
@@ -36,10 +69,6 @@ else:
     with open("saved_grid.pkl", "wb") as f:
         pickle.dump(grid, f)
 
-
-# Build the grid (done once before simulation)
-# print("Building grid...")
-# grid = build_env.build_grid(central_coordinate, radius, grid_size)
 #Place a random firebreak in the real grid
 firebreak = firebreak_utils.Firebreak(grid)  # uses your real terrain/moisture/wind grid
 firebreak_mask = firebreak.firebreak_mask 
@@ -51,7 +80,6 @@ max_ros = 5.0  # Max ROS for scaling probabilities
 
 # Initialize fire state and intensity
 fire_state = np.zeros((grid_size, grid_size))  # UNBURNED = 0
-#firebreak_mask = np.zeros((grid_size, grid_size), dtype=bool) 
 fire_intensity = np.full((grid_size, grid_size), initial_intensity)
 
 # Choose a starting cell
@@ -74,7 +102,6 @@ def plot_grid(fire_state):
                 fire_intensity[fire_state == 2] = 0.0
             else:
                 color_matrix[i, j] = grid[i][j]["fuel_type_color"]
- 
 
     ax.imshow([[0] * grid_size] * grid_size, cmap="gray", alpha=0)
 
@@ -85,8 +112,8 @@ def plot_grid(fire_state):
 
     ax.set_title("Fire Spread Simulation")
     plt.show(block=False)
-    plt.pause(0.5)  # Pause to show updates
-    plt.clf()  # Clear the figure to prepare for the next iteration
+    plt.pause(0.5)
+    plt.clf()
 
 # Fire spread simulation
 def run_fire_simulation(iterations=20):
@@ -98,34 +125,29 @@ def run_fire_simulation(iterations=20):
 
         for i in range(grid_size):
             for j in range(grid_size):
-                if fire_state[i, j] == 1:  # Burning cell
-                    # Retrieve environmental conditions
+                if fire_state[i, j] == 1:
                     new_fire_state[i,j] = 2
                     elevation, elevation2, moisture, temperature, wind_speed, slope, live_fuel_moisture = rothermel_model.get_environmental_data(grid[i][j]['central_coord'])
                     fuel_type = grid[i][j]['fuel_type']
                     print(fuel_type)
                     print(elevation, elevation2, moisture, temperature, wind_speed, slope, live_fuel_moisture)
                     ros = rothermel_model.calculate_ros(fuel_type, wind_speed, slope, moisture, live_fuel_moisture, fuel_model_params)['ros']
-                    ros = adjust_ros_with_firebreak(i, j, ros, firebreak_mask)  #  NEW: Modify ROS if firebreak is present
+                    ros = adjust_ros_with_firebreak(i, j, ros, firebreak_mask, fire_intensity, wind_speed, slope)
                     prob = min((ros * fire_intensity[i, j]) / max_ros, 1.0)
-
 
                     print(f"Cell ({i},{j}) | ROS: {ros} | Spread Probability: {prob:.4f}")
 
-                    # Spread fire to neighbors
-                    for di, dj in [(-1,0), (1,0), (0,-1), (0,1)]:  # 4-way spreading
+                    for di, dj in [(-1,0), (1,0), (0,-1), (0,1)]:
                         ni, nj = i + di, j + dj
                         if 0 <= ni < grid_size and 0 <= nj < grid_size:
-                            if fire_state[ni, nj] == 0 and np.random.rand() < prob:  # Only spread to UNBURNED
-                                new_fire_state[ni, nj] = 1  # Fire spreads
+                            if fire_state[ni, nj] == 0 and np.random.rand() < prob:
+                                new_fire_state[ni, nj] = 1
                                 print(f"Fire spreads to cell ({ni},{nj})")
 
         fire_state = new_fire_state
-        fire_intensity = np.maximum(0, fire_intensity - decay_rate)  # Apply linear decay
-        
-        # Visualize the grid state after each iteration
+        fire_intensity = np.maximum(0, fire_intensity - decay_rate)
         plot_grid(fire_state)
 
 # Run simulation
-# python3 -m fire_spread_prediction.fire_spread_sim
 run_fire_simulation()
+
