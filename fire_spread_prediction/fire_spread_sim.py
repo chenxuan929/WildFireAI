@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 import time
 import os
 import pickle
+import random
 import build_env, rothermel_model, firebreak_utils
 
 
@@ -69,10 +70,6 @@ else:
     with open("saved_grid.pkl", "wb") as f:
         pickle.dump(grid, f)
 
-#Place a random firebreak in the real grid
-firebreak = firebreak_utils.Firebreak(grid)  # uses your real terrain/moisture/wind grid
-firebreak_mask = firebreak.firebreak_mask 
-
 # Fire spread parameters
 initial_intensity = 1.0
 decay_rate = 0.05
@@ -82,9 +79,18 @@ max_ros = 5.0  # Max ROS for scaling probabilities
 fire_state = np.zeros((grid_size, grid_size))  # UNBURNED = 0
 fire_intensity = np.full((grid_size, grid_size), initial_intensity)
 
-# Choose a starting cell
-start_x, start_y = 10, 10  # Example start point
-fire_state[start_x, start_y] = 1  # Fire starts here (BURNING = 1)
+# Choose a fixed starting cell
+start_x, start_y = 10, 10
+
+# Place firebreak ensuring it doesn't block the start point
+while True:
+    firebreak = firebreak_utils.Firebreak(grid)
+    firebreak_mask = firebreak.firebreak_mask
+    if not firebreak_mask[start_x][start_y]:
+        break
+
+# Start the fire at the fixed location
+fire_state[start_x, start_y] = 1
 
 # Visualization function
 def plot_grid(fire_state):
@@ -150,4 +156,5 @@ def run_fire_simulation(iterations=20):
 
 # Run simulation
 run_fire_simulation()
+
 
