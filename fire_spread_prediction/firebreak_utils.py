@@ -3,7 +3,7 @@ import random
 import math
 
 class Firebreak:
-    def __init__(self, grid, length_range=(5, 15), angles=[0, 45, 90, 135, 180, 225, 270, 315]):
+    def __init__(self, grid, length_range=(10, 25), angles=[0, 45, 90, 135, 180, 225, 270, 315]):
         self.grid = grid
         self.n = len(grid)
         self.length_range = length_range

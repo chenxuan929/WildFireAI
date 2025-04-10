@@ -56,8 +56,8 @@ fuel_model_params = pd.read_csv("./data_retrieval/fuel_model_params.csv", skipro
 
 # Define parameters
 central_coordinate = (30.0549, 100.2426)  # (lat, lon)
-radius = 30  # km
-grid_size = 20
+radius = 10  # km (reduced from 30 to 10 for better visibility)
+grid_size = 30  # increased from 20 to 30 for higher resolution
 
 # === Load or build grid ===
 if os.path.exists("saved_grid.pkl"):
@@ -80,7 +80,7 @@ fire_state = np.zeros((grid_size, grid_size))  # UNBURNED = 0
 fire_intensity = np.full((grid_size, grid_size), initial_intensity)
 
 # Choose a fixed starting cell
-start_x, start_y = 10, 10
+start_x, start_y = grid_size // 2, grid_size // 2  # center of the new grid
 
 # Place firebreak ensuring it doesn't block the start point
 while True:
@@ -122,7 +122,7 @@ def plot_grid(fire_state):
     plt.clf()
 
 # Fire spread simulation
-def run_fire_simulation(iterations=20):
+def run_fire_simulation(iterations=30):
     global fire_state, fire_intensity
 
     for t in range(iterations):
