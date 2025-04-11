@@ -87,20 +87,45 @@ def get_landcover_info(lat, lon):
 #  # This is in long, lat, vs. lat., long for some reason?
 # longitude, latitude = 118.2426, 34.0549
 
-# value, color, desc = get_landcover_info(latitude, longitude)
+#value, color, desc = get_landcover_info(latitude, longitude)
+# print(get_landcover_info(latitude, longitude))
 
-# print(f"Landcover Value: {value}")
-# print(f"Hex Color: {color}")
-# print(f"Description: {desc}")
 
-# # Create a map
+# Create a map
 # Map = geemap.Map()
 # Map.setCenter(longitude, latitude, 3)  # Center the map
 
-# # Add the landcover layer
+# Add the landcover layer
 # Map.addLayer(landcover, {'palette': list(landcover_palette.values()), 'min': 11, 'max': 230}, 'Landcover')
 
-# # # Save the map
-# # Map.save("land_cover_map.html")
-# # print("Map saved as land_cover_map.html. Open it in a browser to view.")
+# # Save the map
+# Map.save("land_cover_map.html")
+# print("Map saved as land_cover_map.html. Open it in a browser to view.")
 
+'''
+Color Table for further Check
+Hex Color	Description
+#aaefef	Pale cyan / light aqua (post-flooding or irrigated croplands)
+#ffff63	Bright yellow (rainfed croplands)
+#dcef63	Lime yellow / chartreuse (mosaic cropland / vegetation)
+#cdcd64	Olive yellow (mosaic vegetation / cropland)
+#006300	Dark forest green (broadleaved evergreen/semi-deciduous forest)
+#009f00	Vibrant green (broadleaved deciduous forest)
+#aac700	Yellow-green (open broadleaved deciduous forest)
+#003b00	Very dark green (needleleaved evergreen forest)
+#286300	Earthy green / army green (needleleaved mixed forest)
+#788300	Olive drab / grayish green (mixed broadleaved and needleleaved forest)
+#8d9f00	Mustard green (mosaic forest-shrubland / grassland)
+#bd9500	Golden ochre / burnt mustard (mosaic grassland / forest-shrubland)
+#956300	Brown / dry shrubland tone (shrubland)
+#ffb431	Bright orange (grassland)
+#ffebae	Pale yellow / cream (sparse vegetation)
+#00785a	Deep teal / dark cyan (flooded broadleaved forest - freshwater)
+#009578	Jade green (flooded broadleaved forest - saline water)
+#00dc83	Bright mint green / neon green (flooded or waterlogged vegetation)
+#c31300	Vivid red / scarlet (urban areas)
+#fff5d6	Very light cream / beige (bare areas)
+#0046c7	Deep royal blue (water bodies)
+#ffffff	White (permanent snow and ice)
+#743411	Deep brown (unclassified or unknown terrain)
+'''
