@@ -55,25 +55,71 @@ def adjust_ros_with_firebreak(i, j, ros, firebreak_mask, fire_intensity, wind_sp
 fuel_model_params = pd.read_csv("./data_retrieval/fuel_model_params.csv", skiprows=1).rename(columns=lambda x: x.strip())
 
 # Define parameters
-central_coordinate = (36.7783, 119.4179)  # (lat, lon)
-radius = 10  # km (reduced from 30 to 10 for better visibility)
-grid_size = 30  # increased from 20 to 30 for higher resolution
+# central_coordinate = (36.7783, 119.4179)  # (lat, lon)
+# radius = 10  # km (reduced from 30 to 10 for better visibility)
+# grid_size = 30  # increased from 20 to 30 for higher resolution
+def get_user_coordinates():
+    while True:
+        try:
+            lat = float(input("Enter central latitude (e.g., 36.7783): "))
+            lon = float(input("Enter central longitude (e.g., 119.4179): "))
+            return (lat, lon)
+        except ValueError:
+            print("Invalid input. Please enter numeric values for latitude and longitude.")
 
-# === Load or build grid ===
-if os.path.exists("saved_grid.pkl"):
-    print("Loading saved grid...")
-    with open("saved_grid.pkl", "rb") as f:
+def get_user_radius():
+    while True:
+        try:
+            r = float(input("Enter search radius in km (e.g., 10): "))
+            return r
+        except ValueError:
+            print("Invalid input. Please enter a number.")
+
+def get_user_grid_size():
+    while True:
+        try:
+            g = int(input("Enter grid size (e.g., 30): "))
+            return g
+        except ValueError:
+            print("Invalid input. Please enter an integer.")
+
+# Get values from user
+central_coordinate = get_user_coordinates()
+radius = get_user_radius()
+grid_size = get_user_grid_size()
+
+
+# Load or build grid
+# if os.path.exists("saved_grid.pkl"):
+#     print("Loading saved grid...")
+#     with open("saved_grid.pkl", "rb") as f:
+#         grid = pickle.load(f)
+# else:
+#     print("Building grid...")
+#     grid = build_env.build_grid(central_coordinate, radius, grid_size)
+#     with open("saved_grid.pkl", "wb") as f:
+#         pickle.dump(grid, f)
+
+# Create a filename based on the coordinate, radius, and grid size
+lat, lon = central_coordinate
+grid_filename = f"saved_grid_{lat:.4f}_{lon:.4f}_r{radius}_g{grid_size}.pkl"
+
+# Load or build grid
+if os.path.exists(grid_filename):
+    print(f"Loading saved grid from {grid_filename}...")
+    with open(grid_filename, "rb") as f:
         grid = pickle.load(f)
 else:
-    print("Building grid...")
+    print(f"Building grid for location ({lat}, {lon})...")
     grid = build_env.build_grid(central_coordinate, radius, grid_size)
-    with open("saved_grid.pkl", "wb") as f:
+    with open(grid_filename, "wb") as f:
         pickle.dump(grid, f)
+
 
 # Fire spread parameters
 initial_intensity = 1.0
 decay_rate = 0.02
-max_ros = 1000.0  # Max ROS for scaling probabilities
+max_ros = 125  # Max ROS for scaling probabilities
 
 # Initialize fire state and intensity
 fire_state = np.zeros((grid_size, grid_size))  # UNBURNED = 0
