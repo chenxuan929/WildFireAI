@@ -11,7 +11,7 @@ import build_env, rothermel_model
 fuel_model_params = pd.read_csv("./data_retrieval/fuel_model_params.csv", skiprows=1).rename(columns=lambda x: x.strip())
 
 # Simulation parameters
-central_coordinate = (36.7783, 119.4179)
+central_coordinate = (37.4869, -118.7086)
 radius = 10  # km
 grid_size = 30
 
@@ -29,7 +29,7 @@ else:
 # Fire spread parameters
 initial_intensity = 1.0
 decay_rate = 0.02
-max_ros = 1000.0
+max_ros = 110.0
 
 # Initialize fire state and intensity
 fire_state = np.zeros((grid_size, grid_size))  # 0 = unburned, 1 = burning, 2 = burned
