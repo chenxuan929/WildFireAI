@@ -121,13 +121,33 @@ def simulated_annealing():
         neighbors = get_neighbors(current_params)
         new_params = random.choice(neighbors)
 
-        new_grid, new_fb = create_firebreak(new_params)
-        pickle.dump(new_grid, open("temp_grid.pkl", "wb"))
-        new_state = fire_spread_sim.run_fire_simulation(iterations=30, display=False)
+        MAX_RETRIES = 10
+        retry_count = 0
+        new_unburned = GRID_SIZE * GRID_SIZE  # assume fully unburned initially
+        new_state = None
+        new_fb = None
+        new_grid = None
 
-        new_unburned = compute_unburned_area(new_state)
+        while retry_count < MAX_RETRIES:
+            new_grid, new_fb = create_firebreak(new_params)
+            pickle.dump(new_grid, open("temp_grid.pkl", "wb"))
+            fire_spread_sim.grid = new_grid  # force grid update
+            new_state = fire_spread_sim.run_fire_simulation(iterations=30, display=False, reset=True)
+
+            new_unburned = compute_unburned_area(new_state)
+            new_burned = GRID_SIZE * GRID_SIZE - new_unburned
+            if new_unburned <= 880 and new_burned > new_params["length"] + 20:
+                break  # fire spread is acceptable
+
+            retry_count += 1
+
+        if retry_count == MAX_RETRIES and new_unburned > 880:
+            print(f"[Step {step}]  Skipped: Fire did not spread after {MAX_RETRIES} retries (Unburned: {new_unburned})")
+            continue  # skip this step
+
         new_area = compute_firebreak_area(new_fb.firebreak_mask)
         new_cost = objective(new_unburned, new_area, max_possible)
+
 
         cost_diff = new_cost - best_cost
         accepted = False
@@ -146,7 +166,9 @@ def simulated_annealing():
 
         status = "Accepted" if accepted else "Rejected"
         print(f"[Step {step}] Temp: {temp:.4f} | Cost: {new_cost:.4f} | Best: {best_cost:.4f} | {status} "
-              f"| Len: {new_params['length']} | Angle: {new_params['angle']} | Unburned: {new_unburned}")
+            f"| Start: ({new_params['start_i']},{new_params['start_j']}) | Len: {new_params['length']} | "
+            f"Angle: {new_params['angle']} | Unburned: {new_unburned}")
+
 
         temp *= COOLING_RATE
 
@@ -160,9 +182,14 @@ def simulated_annealing():
     with open("best_final_grid.pkl", "rb") as f:
         final_grid = pickle.load(f)
 
+    # Load best final grid (already has firebreak + burn state)
+    with open("best_final_grid.pkl", "rb") as f:
+        final_grid = pickle.load(f)
+
     final_fire_state = np.zeros((GRID_SIZE, GRID_SIZE))
     final_firebreak_mask = np.zeros((GRID_SIZE, GRID_SIZE), dtype=bool)
 
+    # Extract states and firebreak from saved grid only
     for i in range(GRID_SIZE):
         for j in range(GRID_SIZE):
             cell = final_grid[i][j]
@@ -175,5 +202,7 @@ def simulated_annealing():
 
     plot_fire_state(final_fire_state, final_firebreak_mask, final_grid, title="Final Optimized Fire Spread")
 
+
 if __name__ == "__main__":
     simulated_annealing()
+
