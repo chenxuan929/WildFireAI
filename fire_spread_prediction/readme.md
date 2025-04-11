@@ -21,6 +21,11 @@ Core logic for calculating ROS per cell based on environmental and fuel paramete
 - `calculate_slope(...)`: Computes slope based on elevation difference
 - `get_fuel_group(...)`: Classifies fuel into broad categories (e.g., GR, GS, SH)
 
+- \[
+\text{ROS} = \text{ROS}_{\text{base}} \times (1 + 0.045 \times \text{wind\_speed}) \times (1 + 0.069 \times \text{slope}) \times \left(1 - \frac{\text{moisture} + 0.5 \times \text{live\_fuel\_moisture}}{\text{Moisture of extinction for the fuel}} \right)
+\]
+
+
 ### `open_meteo_client.py`
 Retrieves real-time weather data from Open-Meteo API.
 
