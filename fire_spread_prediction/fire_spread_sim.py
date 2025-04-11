@@ -55,7 +55,7 @@ def adjust_ros_with_firebreak(i, j, ros, firebreak_mask, fire_intensity, wind_sp
 fuel_model_params = pd.read_csv("./data_retrieval/fuel_model_params.csv", skiprows=1).rename(columns=lambda x: x.strip())
 
 # Define parameters
-central_coordinate = (30.0549, 100.2426)  # (lat, lon)
+central_coordinate = (36.7783, 119.4179)  # (lat, lon)
 radius = 10  # km (reduced from 30 to 10 for better visibility)
 grid_size = 30  # increased from 20 to 30 for higher resolution
 
@@ -73,7 +73,7 @@ else:
 # Fire spread parameters
 initial_intensity = 1.0
 decay_rate = 0.05
-max_ros = 5.0  # Max ROS for scaling probabilities
+max_ros = 1000.0  # Max ROS for scaling probabilities
 
 # Initialize fire state and intensity
 fire_state = np.zeros((grid_size, grid_size))  # UNBURNED = 0
@@ -139,14 +139,16 @@ def run_fire_simulation(iterations=30):
                     print(elevation, elevation2, moisture, temperature, wind_speed, slope, live_fuel_moisture)
                     ros = rothermel_model.calculate_ros(fuel_type, wind_speed, slope, moisture, live_fuel_moisture, fuel_model_params)['ros']
                     ros = adjust_ros_with_firebreak(i, j, ros, firebreak_mask, fire_intensity, wind_speed, slope)
+
                     prob = min((ros * fire_intensity[i, j]) / max_ros, 1.0)
 
                     print(f"Cell ({i},{j}) | ROS: {ros} | Spread Probability: {prob:.4f}")
-
+            
                     for di, dj in [(-1,0), (1,0), (0,-1), (0,1)]:
                         ni, nj = i + di, j + dj
+                        print(fuel_type)
                         if 0 <= ni < grid_size and 0 <= nj < grid_size:
-                            if fire_state[ni, nj] == 0 and np.random.rand() < prob:
+                            if not grid[ni][nj]['fuel_type'].startswith("NB") and fire_state[ni, nj] == 0 and np.random.rand() < prob:
                                 new_fire_state[ni, nj] = 1
                                 print(f"Fire spreads to cell ({ni},{nj})")
 
