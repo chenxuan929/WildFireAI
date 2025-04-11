@@ -72,7 +72,7 @@ else:
 
 # Fire spread parameters
 initial_intensity = 1.0
-decay_rate = 0.05
+decay_rate = 0.02
 max_ros = 1000.0  # Max ROS for scaling probabilities
 
 # Initialize fire state and intensity
@@ -122,11 +122,11 @@ def plot_grid(fire_state):
     plt.clf()
 
 # Fire spread simulation
-def run_fire_simulation(iterations=30):
+def run_fire_simulation(iterations=30, display=True):
     global fire_state, fire_intensity
 
     for t in range(iterations):
-        print(f"Iteration {t + 1}/{iterations}")
+        #print(f"Iteration {t + 1}/{iterations}")
         new_fire_state = fire_state.copy()
 
         for i in range(grid_size):
@@ -135,28 +135,32 @@ def run_fire_simulation(iterations=30):
                     new_fire_state[i,j] = 2
                     elevation, elevation2, moisture, temperature, wind_speed, slope, live_fuel_moisture = rothermel_model.get_environmental_data(grid[i][j]['central_coord'])
                     fuel_type = grid[i][j]['fuel_type']
-                    print(fuel_type)
-                    print(elevation, elevation2, moisture, temperature, wind_speed, slope, live_fuel_moisture)
+                    #print(fuel_type)
+                    #print(elevation, elevation2, moisture, temperature, wind_speed, slope, live_fuel_moisture)
                     ros = rothermel_model.calculate_ros(fuel_type, wind_speed, slope, moisture, live_fuel_moisture, fuel_model_params)['ros']
                     ros = adjust_ros_with_firebreak(i, j, ros, firebreak_mask, fire_intensity, wind_speed, slope)
 
                     prob = min((ros * fire_intensity[i, j]) / max_ros, 1.0)
 
-                    print(f"Cell ({i},{j}) | ROS: {ros} | Spread Probability: {prob:.4f}")
+                    #print(f"Cell ({i},{j}) | ROS: {ros} | Spread Probability: {prob:.4f}")
             
                     for di, dj in [(-1,0), (1,0), (0,-1), (0,1)]:
                         ni, nj = i + di, j + dj
-                        print(fuel_type)
+                        #print(fuel_type)
                         if 0 <= ni < grid_size and 0 <= nj < grid_size:
                             if not grid[ni][nj]['fuel_type'].startswith("NB") and fire_state[ni, nj] == 0 and np.random.rand() < prob:
                                 new_fire_state[ni, nj] = 1
-                                print(f"Fire spreads to cell ({ni},{nj})")
+                                #print(f"Fire spreads to cell ({ni},{nj})")
 
         fire_state = new_fire_state
         fire_intensity = np.maximum(0, fire_intensity - decay_rate)
-        plot_grid(fire_state)
+        if display:
+            plot_grid(fire_state)
+    return fire_state  # Optionally return final state
 
 # Run simulation
-run_fire_simulation()
+if __name__ == "__main__":
+    run_fire_simulation()
+
 
 
