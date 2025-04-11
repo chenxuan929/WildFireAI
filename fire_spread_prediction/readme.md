@@ -21,14 +21,17 @@ Core logic for calculating ROS per cell based on environmental and fuel paramete
 - `calculate_slope(...)`: Computes slope based on elevation difference
 - `get_fuel_group(...)`: Classifies fuel into broad categories (e.g., GR, GS, SH)
 
-\[
-\text{ROS} = \text{ROS}_{\text{base}} \cdot (1 + 0.045 \cdot \text{wind\_speed}) \cdot (1 + 0.069 \cdot \text{slope}) \cdot \left(1 - \frac{\text{moisture} + 0.5 \cdot \text{live\_fuel\_moisture}}{\text{Moisture\_of\_extinction}} \right)
-\]
+
 
 
 
 ### `open_meteo_client.py`
 Retrieves real-time weather data from Open-Meteo API.
+-  API Response: {'Date': Timestamp('2025-03-19 18:00:00+0000', tz='UTC'), 'Temperature (2 m)': 5.4040003, 
+- 'Soil Moisture (0-10 cm)': 0.195, 'Soil Moisture (10-40 cm)': 0.25, 'Soil Moisture (40-100 cm)': 0.232, 
+- 'Soil Moisture (100-200 cm)': 0.251, 'Soil Temperature (0-10 cm)': 4.0115, 'Soil Temperature (10-40 cm)': 5.7115, 
+- 'Soil Temperature (40-100 cm)': 3.9615002, 'Soil Temperature (100-200 cm)': 2.9115, 'Surface Temperature': 9.154, 
+- 'Temperature (80 m)': 2.3245, 'Wind Speed (80 m)': 45.468437, 'Wind Direction (80 m)': 349.04596, 'elevation': 1592.0}
 
 ### `google_earth_segmentation.py`
 Maps GEE land cover codes to fuel models.
