@@ -13,7 +13,6 @@ MAX_ITERS = 40
 INITIAL_TEMP = 1.0
 COOLING_RATE = 0.95
 
-# Evaluation Functions
 def compute_unburned_area(state):
     return np.sum(state == 0)
 
@@ -23,7 +22,6 @@ def compute_firebreak_area(mask):
 def objective(unburned_area, firebreak_area, max_area):
     return (unburned_area / max_area) - 0.001 * (firebreak_area / max_area)
 
-# Neighbor generator (Simulated Annealing style)
 def get_neighbors(params):
     neighbors = []
     for di in [-1, 0, 1]:
@@ -44,9 +42,10 @@ def get_neighbors(params):
                     })
     return neighbors
 
-# Create a firebreak from parameters
 def create_firebreak(params):
-    temp_grid = pickle.loads(pickle.dumps(fire_spread_sim.grid, -1))  # Deep copy
+    with open("saved_grid.pkl", "rb") as f:
+        temp_grid = pickle.load(f)
+
     fb = Firebreak(temp_grid, length_range=(params["length"], params["length"]), angles=[params["angle"]])
     fb.start_i = params["start_i"]
     fb.start_j = params["start_j"]
@@ -57,44 +56,6 @@ def create_firebreak(params):
     fb.apply_firebreak()
     return temp_grid, fb
 
-# Visualization
-def plot_fire_state(fire_state, firebreak_mask, grid, title="Final Optimized Fire Spread"):
-    fig, ax = plt.subplots(figsize=(8, 8))
-    color_matrix = np.empty((GRID_SIZE, GRID_SIZE), dtype=object)
-
-    for i in range(GRID_SIZE):
-        for j in range(GRID_SIZE):
-            if firebreak_mask[i][j]:
-                color_matrix[i, j] = "white"
-            elif fire_state[i, j] == 1:
-                color_matrix[i, j] = "red"
-            elif fire_state[i, j] == 2:
-                color_matrix[i, j] = "black"
-            else:
-                color_matrix[i, j] = grid[i][j]["fuel_type_color"]
-
-    ax.set_xlim(0, GRID_SIZE)
-    ax.set_ylim(0, GRID_SIZE)
-    ax.set_xticks(range(GRID_SIZE))
-    ax.set_yticks(range(GRID_SIZE))
-    ax.set_xticklabels([])
-    ax.set_yticklabels([])
-    ax.set_aspect('equal')
-    ax.grid(True, color='gray', linewidth=0.2)
-
-    for i in range(GRID_SIZE):
-        for j in range(GRID_SIZE):
-            ax.add_patch(
-                plt.Rectangle((j, GRID_SIZE - i - 1), 1, 1,
-                              facecolor=color_matrix[i, j], edgecolor='black')
-            )
-
-    ax.set_title(title)
-    plt.tight_layout()
-    plt.show()
-    plt.close(fig)
-
-# Simulated Annealing Optimization
 def simulated_annealing():
     print("Loading saved grid...")
     baseline_state = run_fire_simulation_without_fb(iterations=30, display=False)
@@ -113,8 +74,6 @@ def simulated_annealing():
     }
 
     temp = INITIAL_TEMP
-    best_unburned = 0
-    best_area = 0
     best_params = None
 
     for step in range(MAX_ITERS):
@@ -123,7 +82,7 @@ def simulated_annealing():
 
         MAX_RETRIES = 10
         retry_count = 0
-        new_unburned = GRID_SIZE * GRID_SIZE  # assume fully unburned initially
+        new_unburned = GRID_SIZE * GRID_SIZE
         new_state = None
         new_fb = None
         new_grid = None
@@ -131,23 +90,21 @@ def simulated_annealing():
         while retry_count < MAX_RETRIES:
             new_grid, new_fb = create_firebreak(new_params)
             pickle.dump(new_grid, open("temp_grid.pkl", "wb"))
-            fire_spread_sim.grid = new_grid  # force grid update
+            fire_spread_sim.grid = new_grid
             new_state = fire_spread_sim.run_fire_simulation(iterations=30, display=False, reset=True)
 
             new_unburned = compute_unburned_area(new_state)
             new_burned = GRID_SIZE * GRID_SIZE - new_unburned
             if new_unburned <= 880 and new_burned > new_params["length"] + 20:
-                break  # fire spread is acceptable
-
+                break
             retry_count += 1
 
         if retry_count == MAX_RETRIES and new_unburned > 880:
             print(f"[Step {step}]  Skipped: Fire did not spread after {MAX_RETRIES} retries (Unburned: {new_unburned})")
-            continue  # skip this step
+            continue
 
         new_area = compute_firebreak_area(new_fb.firebreak_mask)
         new_cost = objective(new_unburned, new_area, max_possible)
-
 
         cost_diff = new_cost - best_cost
         accepted = False
@@ -157,51 +114,71 @@ def simulated_annealing():
             accepted = True
             if new_cost > best_cost:
                 best_cost = new_cost
-                best_unburned = new_unburned
-                best_area = new_area
                 best_params = new_params
-
                 with open("best_final_grid.pkl", "wb") as f:
                     pickle.dump(new_grid, f)
 
         status = "Accepted" if accepted else "Rejected"
         print(f"[Step {step}] Temp: {temp:.4f} | Cost: {new_cost:.4f} | Best: {best_cost:.4f} | {status} "
-            f"| Start: ({new_params['start_i']},{new_params['start_j']}) | Len: {new_params['length']} | "
-            f"Angle: {new_params['angle']} | Unburned: {new_unburned}")
-
+              f"| Start: ({new_params['start_i']},{new_params['start_j']}) | Len: {new_params['length']} | "
+              f"Angle: {new_params['angle']} | Unburned: {new_unburned}")
 
         temp *= COOLING_RATE
 
     print("\nOptimization complete!")
     if best_params:
         print(f"Best Firebreak Params: {best_params}")
-        print(f"Best Cost: {best_cost:.4f}")
-        print(f"Unburned Area: {best_unburned} / {max_possible}")
-        print(f"Firebreak Area Used: {best_area}")
+        visualize_best_firebreak_on_clean_grid(best_params)
 
-    with open("best_final_grid.pkl", "rb") as f:
-        final_grid = pickle.load(f)
+#  Visualize firebreak-only on clean grid
+def visualize_best_firebreak_on_clean_grid(best_params):
+    with open("saved_grid.pkl", "rb") as f:
+        clean_grid = pickle.load(f)
 
-    # Load best final grid (already has firebreak + burn state)
-    with open("best_final_grid.pkl", "rb") as f:
-        final_grid = pickle.load(f)
+    # Initialize without placing random firebreak
+    fb = Firebreak(clean_grid, length_range=(best_params["length"], best_params["length"]), angles=[best_params["angle"]])
 
-    final_fire_state = np.zeros((GRID_SIZE, GRID_SIZE))
-    final_firebreak_mask = np.zeros((GRID_SIZE, GRID_SIZE), dtype=bool)
+    # Overwrite with best SA values
+    fb.start_i = best_params["start_i"]
+    fb.start_j = best_params["start_j"]
+    fb.angle_deg = best_params["angle"]
+    fb.length = best_params["length"]
 
-    # Extract states and firebreak from saved grid only
+    # Clear mask and reapply firebreak with new settings
+    fb.firebreak_mask[:] = False
+    fb.cells.clear()
+    fb.apply_firebreak()  # This must be called AFTER updating the params
+
+    firebreak_mask = fb.firebreak_mask
+
+    # Plot grid with only the best firebreak
+    fig, ax = plt.subplots(figsize=(8, 8))
+    color_matrix = np.empty((GRID_SIZE, GRID_SIZE), dtype=object)
+
     for i in range(GRID_SIZE):
         for j in range(GRID_SIZE):
-            cell = final_grid[i][j]
-            if cell.get("fuel_type") == "NB":
-                final_firebreak_mask[i, j] = True
-            if cell.get("fire_state") == 2:
-                final_fire_state[i, j] = 2
-            elif cell.get("fire_state") == 1:
-                final_fire_state[i, j] = 1
+            if firebreak_mask[i][j]:
+                color_matrix[i, j] = "white"
+            else:
+                color_matrix[i, j] = clean_grid[i][j]["fuel_type_color"]
 
-    plot_fire_state(final_fire_state, final_firebreak_mask, final_grid, title="Final Optimized Fire Spread")
+    ax.set_xlim(0, GRID_SIZE)
+    ax.set_ylim(0, GRID_SIZE)
+    ax.set_xticks([])
+    ax.set_yticks([])
+    ax.set_aspect('equal')
+    ax.set_title("Best Firebreak Placement Only")
 
+    for i in range(GRID_SIZE):
+        for j in range(GRID_SIZE):
+            ax.add_patch(
+                plt.Rectangle((j, GRID_SIZE - i - 1), 1, 1,
+                              facecolor=color_matrix[i, j], edgecolor='black')
+            )
+
+    plt.tight_layout()
+    plt.show()
+    plt.close(fig)
 
 if __name__ == "__main__":
     simulated_annealing()

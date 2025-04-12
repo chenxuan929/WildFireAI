@@ -122,8 +122,12 @@ def plot_grid(fire_state):
     plt.clf()
 
 # Fire spread simulation
-def run_fire_simulation(iterations=30, display=True, reset=True):
+def run_fire_simulation(custom_grid=None, iterations=30, display=True, reset=True):
     global fire_state, fire_intensity
+    
+    global grid
+    if custom_grid is not None:
+        grid = custom_grid
 
     if reset:
         fire_state = np.zeros((grid_size, grid_size))
@@ -167,7 +171,3 @@ def run_fire_simulation(iterations=30, display=True, reset=True):
 # Run simulation
 if __name__ == "__main__":
     run_fire_simulation()
-
-
-
-
