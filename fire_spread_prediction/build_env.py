@@ -30,6 +30,10 @@ def build_grid(central_coordinate, radius, grid_size):
                 grid[i][j][feature] = hourly_data[feature]
             grid[i][j]["fuel_type"] = google_earth_segmentation.get_landcover_info(lat, lon)[2]
             grid[i][j]["fuel_type_color"] = google_earth_segmentation.get_landcover_info(lat, lon)[1]
+
+            grid[i][j]["original_fuel_type"] = grid[i][j]["fuel_type"]
+            grid[i][j]["original_color"] = grid[i][j]["fuel_type_color"]
+
             
             # print(grid[i][j]["fuel_type"])
     print("YESSS! All grid attributes initialized!")
