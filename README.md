@@ -21,7 +21,7 @@ Part 2: In conjunction, local search (with simulated annealing) is utilized afte
 ```
 ## Directory Structure
 - cached_grid_states/environments      # Saved environments that can be used (to reduce wait time).
-- modeling/                            # Contains scripts for building environment, running the simulation, and utils
+- modeling/                            # Contains scripts for building environment, running the simulation, and utils.
   - data_retrieval/                    # GEE image segmentation, Open-Meteo interpeter, Rothermel look-up table.
   - fire_spread_sim.py                 # Entry point to run optimization.
 - sim_experimentation/                 # Exploratory work done initially (2D and 3D visualizations).
