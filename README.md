@@ -20,12 +20,12 @@ Part 2: In conjunction, local search (with simulated annealing) is utilized afte
 
 ```
 ## Directory Structure
-- cached_grid_states/           # Saved environments that can be used (to reduce wait time).
-- modeling/                     # Contains scripts for building environment, running the simulation, and utils
-  - data_retrieval/             # GEE image segmentation, Open-Meteo interpeter, Rothermel look-up table.
-  - fire_spread_sim.py          # Entry point to run optimization.
-- sim_experimentation/          # Exploratory work done initially (2D and 3D visualizations).
-- testing/                      # Test scripts to validate behavior of modeling scripts.
+- cached_grid_states/environments      # Saved environments that can be used (to reduce wait time).
+- modeling/                            # Contains scripts for building environment, running the simulation, and utils
+  - data_retrieval/                    # GEE image segmentation, Open-Meteo interpeter, Rothermel look-up table.
+  - fire_spread_sim.py                 # Entry point to run optimization.
+- sim_experimentation/                 # Exploratory work done initially (2D and 3D visualizations).
+- testing/                             # Test scripts to validate behavior of modeling scripts.
 ```
 
 ## Running the Project
@@ -45,12 +45,21 @@ pip install -r requirements.txt
 You can either use a previously saved environment or specify your own parameters and generate a new one.
 1. Using an existing environment: 
 - From `cached_grid_states/environments` drag any one `.pkl` file out to the root directory. You are all set.
+  - `env_1.pkl`: Forest
+  - `env_2.pkl`: Wetland
+  - `env_3.pkl`: Water Body
+ 
+<br>
 
-> [!WARNING]  
-> If the steps below still prompt that you don't have access, then we would have to manually add the user as a contributor to the GCP Project.
 2. Specifying your own environment:
-   - Note: You will need a Google Earth Engine & Google Cloud Account to generate an environment. If new parameters are specified, a new environment must be constructed, and corresponding data is retrieved. New users may be asked on authenticate within the command line.
-   - Navigate to `modeling/fire_spread_sim.py` and lines 57-60 to define the parameters:
+
+Note: You will need a Google Earth Engine & Google Cloud Account to generate an environment. If new parameters are specified, a new environment must be constructed, and corresponding data is retrieved. New users may be asked on authenticate within the command line.
+> [!WARNING]  
+> If the steps above still prompt that you don't have access, then we would have to manually add the user as a contributor to the GCP Project.
+
+<br>
+
+Navigate to `modeling/fire_spread_sim.py` and lines 57-60 to define the parameters:
 
 ```
 # Define parameters (example values shown).
@@ -58,6 +67,8 @@ central_coordinate = (37.4869, -118.7086)  # (lat, lon)
 radius = 10  # km
 grid_size = 30  # n, makes up n x n grid
 ```
+
+<br>
 
 3. Specify the ignition point.
 Also in `modeling/fire_spread_sim.py`, the ignition point can be adjusted on line 93 (defaults to center of the grid).
@@ -67,6 +78,7 @@ start_x, start_y = grid_size // 2, grid_size // 2  # center of the new grid
 ```
 
 ### 4. Run the simulation script.
+
 Navigate to `modeling/` and run:
 ```
 python3 fire_spread_sim.py
