@@ -44,7 +44,7 @@ pip install -r requirements.txt
 ### 3. Configure Environment Specifics
 You can either use a previously saved environment or specify your own parameters and generate a new one.
 1. Using an existing environment: In `cached_grid_states/` drag `saved_grid.py` out to the root. You are all set.
-2. Specify your own environment:
+2. Specifying your own environment:
    - Note: You will need a Google Earth Engine & Google Cloud Account to generate an environment. If new parameters are specified, a new environment must be constructed, and corresponding data is retrieved. New users may be asked on authenticate within the command line.
    - Navigate to `modeling/fire_spread_sim.py` and lines 57-60 to define the parameters:
 
