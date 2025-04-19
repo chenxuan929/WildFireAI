@@ -1,7 +1,7 @@
 earthengine_api==1.5.7
 geemap==0.35.3
-matplotlib==3.8.3
-numpy==2.2.4
+matplotlib
+numpy
 openmeteo_requests==1.4.0
 pandas==2.2.3
 pygame==2.5.2
