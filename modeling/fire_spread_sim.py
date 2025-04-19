@@ -5,6 +5,7 @@ import time
 import os
 import pickle
 import random
+import re
 import build_env, rothermel_model, firebreak_utils
 
 
@@ -55,25 +56,32 @@ def adjust_ros_with_firebreak(i, j, ros, firebreak_mask, fire_intensity, wind_sp
 fuel_model_params = pd.read_csv("./data_retrieval/fuel_model_params.csv", skiprows=1).rename(columns=lambda x: x.strip())
 
 # Define parameters
-central_coordinate = (37.4869, -118.7086)  # (lat, lon)
+central_coordinate = (37.4869, -118.7086) # (lat, lon)
 radius = 10  # km (reduced from 30 to 10 for better visibility)
 grid_size = 30  # increased from 20 to 30 for higher resolution
 
 # === Load or build grid ===
-if os.path.exists("saved_grid.pkl"):
+if os.path.exists("../saved_grid.pkl"):
     print("Loading saved grid...")
-    with open("saved_grid.pkl", "rb") as f:
+    with open("../saved_grid.pkl", "rb") as f:
         grid = pickle.load(f)
 else:
-    print("Building grid...")
-    grid = build_env.build_grid(central_coordinate, radius, grid_size)
-    with open("saved_grid.pkl", "wb") as f:
-        pickle.dump(grid, f)
+    files = os.listdir("../")
+    pattern = re.compile(r"env_\d+\.pkl")
+    envs = [f for f in files if pattern.fullmatch(f)]
+    if envs:
+        with open("../" + envs[0], "rb") as f:
+            grid = pickle.load(f)
+    else:
+        print("Building grid...")
+        grid = build_env.build_grid(central_coordinate, radius, grid_size)
+        with open("../cached_grid_states/saved_grid.pkl", "wb") as f:
+            pickle.dump(grid, f)
 
 # Fire spread parameters
 initial_intensity = 1.0
 decay_rate = 0.02
-max_ros = 110.0  # Max ROS for scaling probabilities
+max_ros = 100.0  # Max ROS for scaling probabilities
 
 # Initialize fire state and intensity
 fire_state = np.zeros((grid_size, grid_size))  # UNBURNED = 0
