@@ -1,66 +1,63 @@
-# Predicting Wildfire Spread and Optimizing Firebreak Placement  
+# Fire Spread Modeling & Firebreak Optimization
+## Overview
+This project looks to serve as an assistive tool to observe wildfire spread, identify high-risk areas, and suggest optimal firebreak placements for a given region to aid in reducing overall potential damage. 
 
-## 1. Fire Spread Forecasting  
+Part 1: For fire spread, a modified MDP approach is used in addition to specifications outlined by the Rothermel Model to determine transition probablities based on environmental factors. Data is retrieved from: 
+- [GlobCover: Global Land Cover Map](https://developers.google.com/earth-engine/datasets/catalog/ESA_GLOBCOVER_L4_200901_200912_V2_3) (Fuel Type)
+- [Open-Meteo Forecasting API](https://open-meteo.com/en/docs) (Atmospheric Temperature, Surface Temperature, Soil Moisture, Wind Speed & Direction)
 
-For a given environment (whether randomly generated or derived from specific coordinates), predict the likelihood of fire spread from a starting cell based on factors such as:  
-
-- **Vegetation Type / Fuel Type**  
-- **Elevation**  
-- **Moisture**  
-- **Temperature**  
-- **Wind Speed / Direction** (to be incorporated later)  
-
-### **Markov Model Approach**  
-
-#### **Environment Representation**  
-The environment consists of an **n × n** grid of cells, each representing a fixed area. The properties of each cell are derived from:  
-
-- **Land Cover / Fuel Type**: Google Earth Engine, US Land Cover 
-1. [US Physiography](https://developers.google.com/earth-engine/datasets/catalog/CSP_ERGo_1_0_US_physiography)
-2. [US NED Landforms](https://developers.google.com/earth-engine/datasets/catalog/CSP_ERGo_1_0_US_landforms)
-3. [GlobCover: Global Land Cover Map](https://developers.google.com/earth-engine/datasets/catalog/ESA_GLOBCOVER_L4_200901_200912_V2_3)
-- **Elevation, Moisture, Temperature**: [Open-Meteo API](https://open-meteo.com/en/docs/elevation-api?utm_source=chatgpt.com#latitude=42.3287&longitude=-71.0854 )
+Part 2: In conjunction, local search (with simulated annealing) is utilized after simulating fire spread to determine the best length, angle, and location of a firebreak.  
 
 
-#### **State of Each Cell**  
-Each cell exists in one of three states:  
-1. **Untouched**  
-2. **Burning**  
-3. **Burned**  
+## Demos for Different Regions
 
-#### **Transition Probabilities**  
-Fire spread transitions are modeled using the **Rothermel Model**, considering:  
-- **Fuel Load**  
-- **Surface-Area-to-Volume (SAV) Ratio**  
-- **Fuel Depth**  
-- **Dead Fuel Extinction (Moisture Content)**  
-- **Heat Content (Temperature)**  
 
-There are **7 main classifications** for fuel types. 
+| <img src="https://github.com/user-attachments/assets/442eaa77-cfd7-4cdd-8a1f-4b082b010227" width="300"/> | <img src="https://github.com/user-attachments/assets/f7945bcd-84dc-48e3-bdd7-ad40af6fb95f" width="295"/> | <img src="https://github.com/user-attachments/assets/76d93de4-bb45-4d7a-aa65-aa486b7f5532" width="303"/> | 
+|--------|--------|--------|
+| <div align="center">Sierra Nevada Forest<br>Forest<br>(37.7397, -119.5746)</div> | <div align="center">Okefenokee Swamp<br>Swamp/Wetland<br>(30.7194, -82.1500)</div> | <div align="center">Lake Tahoe<br>Water Body<br>(39.0968, -120.0324)</div> |
 
-[Rothermel Model - Parameter Look Up By Fuel Type](https://www.fs.usda.gov/rm/pubs_series/rmrs/gtr/rmrs_gtr153.pdf) (pg. 26)
+## Directory Structure
 
-#### **Simulation Mechanism**  
-- The agent will have access only to **directly adjacent cells**.  
-- Fire spread probabilities are assigned based on transition probabilities.  
+```
+## Directory Structure
+- cached_grid_states/           # Saved environments that can be used (to reduce wait time).
+- modeling/                     # Contains scripts for building environment, running the simulation, and utils
+  - data_retrieval/             # GEE image segmentation, Open-Meteo interpeter, Rothermel look-up table.
+  - fire_spread_sim.py          # Entry point to run optimization.
+- sim_experimentation/          # Exploratory work done initially (2D and 3D visualizations).
+- testing/                      # Test scripts to validate behavior of modeling scripts.
+```
 
----
+## Running the Project
+### 1. Clone the repository.
+```
+git clone <repo_url>
+cd <repo_name>
+```
 
-## 2. Firebreak Optimization  
+### 2. Install Dependencies
+Make sure you have Python 3.8+ installed on your system. Then, install the dependencies listed in `requirements.txt`:
+```
+pip install -r requirements.txt
+```
 
-Using wildfire simulation runs (or multiple runs from different starting cells) within the same environment, the model will:  
-- Analyze fire spread patterns  
-- Suggest **optimal locations** for firebreak placement  
+### 3. Configure Environment Specifics
+You can either use a previously saved environment or specify your own parameters and generate a new one.
+1. Using an existing environment: In `cached_grid_states/` drag `saved_grid.py` out to the root. You are all set.
+2. Specify your own environment:
+   - Note: You will need a Google Earth Engine & Google Cloud Account to generate an environment. If new parameters are specified, a new enviornment must be constructed, and corresponding data is retrieved. New users may be asked on authenticate within the command line.
+   - Navigate to `modeling/fire_spread_sim.py` and lines 57-60 to define the parameters:
 
----
+```
+# Define parameters (example values shown).
+central_coordinate = (37.4869, -118.7086)  # (lat, lon)
+radius = 10  # km
+grid_size = 30  # n, makes up n x n grid
+```
 
-## 3. End-to-End Workflow  
-
-- **High-Level Design Choices**  
-  - Environment selection  
-  - Algorithm and model selection  
-  - Fire spread simulation approach  
-
-- **Team Responsibilities & Timeline**  
-  - **Tentative division of work**  
-  - **Soft deliverables and milestones**  
+### 4. Run the simulation script.
+Navigate to `modeling/` and run:
+```
+python3 fire_spread_sim.py
+```
+If creating a new environment, it will take 5-10 minutes to build before running the simulation (also depends on the size of the grid). Logs are provided to help track where the program is.
